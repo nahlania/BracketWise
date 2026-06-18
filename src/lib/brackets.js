@@ -1,69 +1,76 @@
 // ─── FEDERAL TAX BRACKETS ────────────────────────────────────────────────────
+// 2025: first bracket blended at 14.5% (rate was cut from 15% to 14% on July 1 2025).
+// 4th bracket rate is the statutory 29%; the ~29.3x% figure cited elsewhere is an
+// effective rate that already bakes in the BPA phase-out — handled separately by fedBpa().
 
 export const FED_BRACKETS = {
   2025: [
-    { lo: 0,       r: 15   },
+    { lo: 0,       r: 14.5 },
     { lo: 57375,   r: 20.5 },
     { lo: 114750,  r: 26   },
-    { lo: 177882,  r: 29.3 },
+    { lo: 177882,  r: 29   },
     { lo: 253414,  r: 33   },
   ],
   2026: [
     { lo: 0,       r: 14   },
     { lo: 58524,   r: 20.5 },
     { lo: 117046,  r: 26   },
-    { lo: 181441,  r: 29.3 },
+    { lo: 181441,  r: 29   },
     { lo: 258483,  r: 33   },
   ],
 };
 
 // ─── PROVINCIAL TAX BRACKETS ────────────────────────────────────────────────
+// AB 2025: new 8% first bracket on first $60,000 introduced (previously 10% from $0).
+// BC 2026: lowest rate raised from 5.06% to 5.60%.
 
 export const PROV_BRACKETS = {
   2025: {
     AB: [
-      { lo: 0,       r: 10 },
-      { lo: 150894,  r: 12 },
-      { lo: 180989,  r: 13 },
-      { lo: 241175,  r: 14 },
+      { lo: 0,       r: 8  },
+      { lo: 60000,   r: 10 },
+      { lo: 151234,  r: 12 },
+      { lo: 181481,  r: 13 },
+      { lo: 241974,  r: 14 },
       { lo: 362961,  r: 15 },
     ],
     BC: [
       { lo: 0,       r: 5.06  },
-      { lo: 46561,   r: 7.7   },
-      { lo: 93127,   r: 10.5  },
-      { lo: 106918,  r: 12.29 },
-      { lo: 137494,  r: 14.7  },
-      { lo: 177882,  r: 16.8  },
-      { lo: 260310,  r: 20.5  },
+      { lo: 49279,   r: 7.7   },
+      { lo: 98560,   r: 10.5  },
+      { lo: 113158,  r: 12.29 },
+      { lo: 137407,  r: 14.7  },
+      { lo: 186306,  r: 16.8  },
+      { lo: 259829,  r: 20.5  },
     ],
     SK: [
       { lo: 0,       r: 10.5 },
-      { lo: 53329,   r: 12.5 },
-      { lo: 152399,  r: 14.5 },
+      { lo: 53463,   r: 12.5 },
+      { lo: 152750,  r: 14.5 },
     ],
   },
   2026: {
     AB: [
-      { lo: 0,       r: 10 },
-      { lo: 154260,  r: 12 },
-      { lo: 185112,  r: 13 },
-      { lo: 246814,  r: 14 },
-      { lo: 370221,  r: 15 },
+      { lo: 0,       r: 8  },
+      { lo: 61200,   r: 10 },
+      { lo: 154259,  r: 12 },
+      { lo: 185111,  r: 13 },
+      { lo: 246813,  r: 14 },
+      { lo: 370220,  r: 15 },
     ],
     BC: [
-      { lo: 0,       r: 5.06  },
-      { lo: 47549,   r: 7.7   },
-      { lo: 95103,   r: 10.5  },
-      { lo: 109188,  r: 12.29 },
-      { lo: 140431,  r: 14.7  },
-      { lo: 181441,  r: 16.8  },
-      { lo: 265546,  r: 20.5  },
+      { lo: 0,       r: 5.6   },
+      { lo: 50363,   r: 7.7   },
+      { lo: 100727,  r: 10.5  },
+      { lo: 115648,  r: 12.29 },
+      { lo: 140430,  r: 14.7  },
+      { lo: 190405,  r: 16.8  },
+      { lo: 265545,  r: 20.5  },
     ],
     SK: [
       { lo: 0,       r: 10.5 },
-      { lo: 54533,   r: 12.5 },
-      { lo: 155806,  r: 14.5 },
+      { lo: 54532,   r: 12.5 },
+      { lo: 155805,  r: 14.5 },
     ],
   },
 };
@@ -74,22 +81,22 @@ export const PROV_BRACKETS = {
 
 export const BPA_PARAMS = {
   2025: {
-    fedMax:    16130,
-    fedMin:    15124,
+    fedMax:    16129,
+    fedMin:    14538,
     fedThresh: 177882,
     fedMaxLim: 253414,
-    AB:        22230,
-    BC:        12580,
-    SK:        19926,
+    AB:        22323,
+    BC:        12932,
+    SK:        19491,
   },
   2026: {
-    fedMax:    16453,
-    fedMin:    15426,
+    fedMax:    16452,
+    fedMin:    14829,
     fedThresh: 181441,
     fedMaxLim: 258483,
-    AB:        22770,
-    BC:        12842,
-    SK:        20382,
+    AB:        22769,
+    BC:        13216,
+    SK:        20381,
   },
 };
 
@@ -151,6 +158,16 @@ export const LIMITS = {
   2026: { rrspMax: 33810, fhsaAnnual: 8000, tfsaAnnual: 7000, fhsaLifetime: 40000 },
 };
 
+// ─── CANADA EMPLOYMENT AMOUNT ────────────────────────────────────────────────
+// Federal NR credit (Line 31260): lesser of actual T4 income and this indexed limit.
+// Applies only to T4 employment income; not available on SE or investment income.
+// 2025: $1,469 × 14.5% = $213 credit. 2026 indexed at the 2.0% federal factor.
+
+export const CEA_PARAMS = {
+  2025: 1469,
+  2026: 1498,
+};
+
 // ─── MEDICAL EXPENSE FLOOR ───────────────────────────────────────────────────
 // Deductible floor = lesser of (3% of net income) or this indexed limit.
 // Federal and provincial caps are indexed independently each year.
@@ -186,10 +203,11 @@ export const PROVINCE_NAMES = {
   SK: 'Saskatchewan (SK)',
 };
 
-// ─── LOWEST PROVINCIAL RATE (for medical credit calculations) ────────────────
+// ─── LOWEST PROVINCIAL RATE (for medical credit and BPA credit calculations) ─
+// Year-specific because BC raised its lowest bracket from 5.06% to 5.60% in 2026,
+// and AB introduced a new 8% first bracket in 2025 (previously 10% from $0).
 
 export const PROV_LOWEST_RATE = {
-  AB: 10,
-  BC: 5.06,
-  SK: 10.5,
+  2025: { AB: 8,   BC: 5.06, SK: 10.5 },
+  2026: { AB: 8,   BC: 5.6,  SK: 10.5 },
 };

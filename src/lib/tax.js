@@ -1,6 +1,7 @@
 ﻿import {
   FED_BRACKETS,
   BPA_PARAMS,
+  CEA_PARAMS,
   CPP_PARAMS,
   EI_PARAMS,
   LIMITS,
@@ -159,26 +160,31 @@ function capitalGainsInclusion(gains) {
 
 // ─── FEDERAL TAX ─────────────────────────────────────────────────────────────
 
-function calcFedTax(taxableIncome, netIncome, cppData, eiPremium, medExp, province, year) {
+function calcFedTax(taxableIncome, netIncome, t4Income, cppData, eiPremium, medExp, province, year) {
   const rawFed  = bracketedTax(taxableIncome, FED_BRACKETS[year]);
   const bpa     = fedBpa(netIncome, year);
-  const bpaCred = bpa * 0.15;
 
-  // CPP1 non-refundable credits (T4 base + SE base) at 15%
-  const cppNrtc = (cppData.t4CppNrtcBase + cppData.seNrtcBase) * 0.15;
+  // CRA non-refundable credit rate = lowest marginal bracket rate.
+  // 15% in 2025; cut to 14% in 2026 with the first-bracket reduction.
+  // Using a hardcoded 0.15 would overstate every NR credit by 1 pp in 2026,
+  // understating federal tax by ~$200–350 depending on income and credits.
+  const nrcRate = FED_BRACKETS[year][0].r / 100;
 
-  // EI premium non-refundable credit (Line 31200) at 15%
-  const eiCred  = eiPremium * 0.15;
+  const bpaCred = bpa * nrcRate;
+  const cppNrtc = (cppData.t4CppNrtcBase + cppData.seNrtcBase) * nrcRate;
+  const eiCred  = eiPremium * nrcRate;
+  // Canada Employment Amount (Line 31260): T4 employment income only.
+  const ceaCred = Math.min(t4Income, CEA_PARAMS[year]) * nrcRate;
 
   const medCred = (() => {
     const indexedFloor = MEDICAL_FLOOR[year];
     const pctFloor     = netIncome * 0.03;
     const floor        = Math.min(pctFloor, indexedFloor);
     const eligible     = Math.max(0, medExp - floor);
-    return eligible * 0.15;
+    return eligible * nrcRate;
   })();
 
-  return Math.max(0, rawFed - bpaCred - cppNrtc - eiCred - medCred);
+  return Math.max(0, rawFed - bpaCred - cppNrtc - eiCred - ceaCred - medCred);
 }
 
 // ─── RRSP AVAILABLE ROOM ─────────────────────────────────────────────────────
@@ -190,11 +196,9 @@ function calcRrspRoom(rrspRoomFromNoa, alreadyContributed, t4Income, matchPct) {
 
 // ─── FHSA AVAILABLE ROOM ─────────────────────────────────────────────────────
 
-function calcFhsaRoom(alreadyThisYear, lifetimeUsed, carryforward, year) {
-  const annual   = LIMITS[year].fhsaAnnual;
+function calcFhsaRoom(alreadyThisYear, lifetimeUsed, roomForYear, year) {
   const lifetime = LIMITS[year].fhsaLifetime;
-  const effectiveAnnual = annual + Math.min(carryforward, annual); // up to $16,000 with carryforward
-  const annualRoom   = Math.max(0, effectiveAnnual - alreadyThisYear);
+  const annualRoom   = Math.max(0, roomForYear - alreadyThisYear);
   const lifetimeRoom = Math.max(0, lifetime - lifetimeUsed);
   return Math.min(annualRoom, lifetimeRoom);
 }
@@ -203,12 +207,10 @@ function calcFhsaRoom(alreadyThisYear, lifetimeUsed, carryforward, year) {
 
 function getFloor(province, year) {
   if (province === 'BC') return TAX_FREE_FLOOR.BC;
-  // True zero-tax threshold for AB / SK: BPA credit (at 15%) ÷ first-bracket rate.
-  // In 2025 the rates match (both 15%) so this equals fedMax exactly.
-  // In 2026+ the first bracket was cut to 14%, making the threshold ~$1,176 above fedMax.
-  const fedBpa       = BPA_PARAMS[year].fedMax;
-  const fedFirstRate = FED_BRACKETS[year][0].r / 100;
-  return (fedBpa * 0.15) / fedFirstRate;
+  // AB / SK zero-tax threshold = federal fedMax.
+  // nrcRate equals fedFirstRate (dynamic), so (fedBpa × nrcRate) / fedFirstRate = fedBpa.
+  // Provincial BPA (e.g. AB $22,323) exceeds fedMax in all years, so federal is binding.
+  return BPA_PARAMS[year].fedMax;
 }
 
 // ─── COMBINED BRACKETS PLOT DATA ─────────────────────────────────────────────
@@ -254,7 +256,7 @@ function buildBracketsPlotData(province, year) {
 function singlePass(inputs, rrspContrib, fhsaContrib) {
   const {
     year, province,
-    t4Income, seNetIncome, interestIncome, capitalGains,
+    t4Income, seNetIncome, otherTaxableIncome, capitalGains,
     childcare, medicalExpenses,
     rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchPct,
     fhsaAlreadyThisYear, fhsaLifetimeUsed,
@@ -264,7 +266,13 @@ function singlePass(inputs, rrspContrib, fhsaContrib) {
 
   // ── Net income deductions ────────────────────────────────────────────────
   const cgInclusion = capitalGainsInclusion(capitalGains);
-  const grossIncome = t4Income + seNetIncome + interestIncome + cgInclusion;
+  // Taxable-basis income: capital gains counted at their CRA inclusion rate
+  // (50% / 2/3). This feeds netIncome/taxableIncome for bracket calculations.
+  const taxableGrossIncome = t4Income + seNetIncome + otherTaxableIncome + cgInclusion;
+  // Economic gross income: 100% of capital gains, since the untaxed portion
+  // is still cash the taxpayer receives. Used for display, after-tax income,
+  // and the effective tax rate.
+  const grossIncome = t4Income + seNetIncome + otherTaxableIncome + capitalGains;
 
   // Line 22200: SE employer CPP1 + SE enhanced CPP1 + SE CPP2 (seEnhancedDeduction)
   // Line 22215: T4 enhanced CPP1 + T4 CPP2
@@ -273,7 +281,7 @@ function singlePass(inputs, rrspContrib, fhsaContrib) {
 
   const netIncome = Math.max(
     0,
-    grossIncome
+    taxableGrossIncome
       - seCppDeductions
       - t4CppLine22215
       - (rrspAlreadyContributed || 0)
@@ -289,15 +297,16 @@ function singlePass(inputs, rrspContrib, fhsaContrib) {
   // ── Federal tax ──────────────────────────────────────────────────────────
   const ei     = calcEI(t4Income, year);
   const fedTax = calcFedTax(
-    taxableIncome, netIncome, cpp, ei, medicalExpenses, province, year,
+    taxableIncome, netIncome, t4Income, cpp, ei, medicalExpenses, province, year,
   );
 
   // ── Provincial tax ───────────────────────────────────────────────────────
-  const { provTax, isInClawbackZone } = calcProv(taxableIncome, netIncome, province, year);
+  const provCppNrtcBase = cpp.t4CppNrtcBase + cpp.seNrtcBase;
+  const { provTax, isInClawbackZone } = calcProv(taxableIncome, netIncome, province, year, provCppNrtcBase, ei);
 
   // ── Provincial NR credit for medical (applied to prov tax externally) ───
   const medFloor    = Math.min(netIncome * 0.03, PROV_MEDICAL_FLOOR[year][province]);
-  const provMedCred = Math.max(0, medicalExpenses - medFloor) * (PROV_LOWEST_RATE[province] / 100);
+  const provMedCred = Math.max(0, medicalExpenses - medFloor) * (PROV_LOWEST_RATE[year][province] / 100);
   const adjProvTax  = Math.max(0, provTax - provMedCred);
 
   const totalTax = fedTax + adjProvTax;
@@ -327,7 +336,7 @@ function estimateT4Withholding(t4Income, year, province) {
   const { totalTax: t4TotalTax } = singlePass({
     year, province,
     t4Income,
-    seNetIncome: 0, interestIncome: 0, capitalGains: 0,
+    seNetIncome: 0, otherTaxableIncome: 0, capitalGains: 0,
     childcare: 0, medicalExpenses: 0,
     rrspRoomFromNoa: 0, rrspAlreadyContributed: 0, rrspMatchPct: 0,
     fhsaAlreadyThisYear: 0, fhsaLifetimeUsed: 0,
@@ -351,15 +360,15 @@ function getMarginalRate(income, plotData) {
 export function calculateTax(inputs) {
   const {
     year, province,
-    t4Income, seNetIncome,
+    t4Income, rrspMatchIncome, seNetIncome, capitalGains,
     availableCash,
     rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchPct,
-    fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaCarryforward,
+    fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaRoomForYear,
   } = inputs;
 
   const floor       = getFloor(province, year);
-  const rrspRoom    = calcRrspRoom(rrspRoomFromNoa, rrspAlreadyContributed, t4Income, rrspMatchPct);
-  const fhsaRoom    = calcFhsaRoom(fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaCarryforward, year);
+  const rrspRoom    = calcRrspRoom(rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchIncome ?? t4Income, rrspMatchPct);
+  const fhsaRoom    = calcFhsaRoom(fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaRoomForYear, year);
   const t4TotalTax  = estimateT4Withholding(t4Income, year, province);
 
   // ── Pre-optimization pass (zero contributions) — for before/after comparison
@@ -407,8 +416,12 @@ export function calculateTax(inputs) {
 
   // ── Derived metrics ───────────────────────────────────────────────────────
   const afterTaxIncome = result.grossIncome - result.totalTax - result.totalCpp - ei;
-  const avgTaxRate     = result.grossIncome > 0
-    ? (result.totalTax / result.grossIncome) * 100 : 0;
+
+  // Effective rate = (post-optimization income tax + CPP + EI) ÷ gross income.
+  // Consistent with afterTaxIncome, which also uses result.totalTax.
+  const avgTaxRate = result.grossIncome > 0
+    ? ((result.totalTax + result.totalCpp + ei) / result.grossIncome) * 100 : 0;
+
   const taxSaving      = Math.max(0, beforePass.totalTax - result.totalTax);
 
   // ── Marginal rates before / after optimization ────────────────────────────

@@ -1,10 +1,73 @@
 @import "tailwindcss";
 
+/* ─── BRAND PALETTE ───────────────────────────────────────────────────────────
+   Single source of truth for the app's color tokens. Swap a palette by editing
+   the hex values below — every `bg-brand-*` / `text-danger-*` / etc. class in
+   the app updates automatically. */
+@theme {
+  /* Brand — teal */
+  --color-brand-50:  #E1FAF7;
+  --color-brand-100: #C8EDE9;
+  --color-brand-200: #97D5CF;
+  --color-brand-300: #5CBFB6;
+  --color-brand-400: #2DBEAF;
+  --color-brand-500: #14B8A6;
+  --color-brand-600: #0D9488;
+  --color-brand-700: #0F766E;
+  --color-brand-800: #115E59;
+
+  /* Accent — vibrant green for success / growth */
+  --color-accent-50:  #ECFEF4;
+  --color-accent-200: #86EFAC;
+  --color-accent-500: #07F66E;
+  --color-accent-700: #068A3E;
+
+  /* Alerts — kept unchanged */
+  --color-danger-50:  #fef2f2;
+  --color-danger-200: #fecaca;
+  --color-danger-800: #991b1b;
+
+  --color-warning-50:  #fffbeb;
+  --color-warning-200: #fde68a;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+}
+
 @layer base {
   body {
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  /* ─── CUSTOM SCROLLBAR ──────────────────────────────────────────────────────
+     Slim, rounded scrollbar for the independently-scrolling left/right columns
+     and main panel, matching the dark header/footer/background theme. */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #475569;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #64748b;
   }
 }

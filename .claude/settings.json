@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "PowerShell(Start-Process -NoNewWindow -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -PassThru)",
+      "Bash(curl -s http://localhost:5173)",
+      "PowerShell(\\(Get-Command npm\\).Source)",
+      "PowerShell(Start-Process -NoNewWindow -FilePath \"powershell.exe\" -ArgumentList \"-NonInteractive\",\"-Command\",\"npm run dev\" -PassThru | Select-Object Id)",
+      "PowerShell(npm install lucide-react 2>&1)"
+    ]
+  }
+}

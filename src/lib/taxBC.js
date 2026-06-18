@@ -19,7 +19,16 @@ function bracketedTax(income, brackets) {
 // ─── BC BASIC PERSONAL AMOUNT CREDIT ─────────────────────────────────────────
 
 function bcBpaCredit(year) {
-  return BPA_PARAMS[year].BC * (PROV_LOWEST_RATE.BC / 100);
+  return BPA_PARAMS[year].BC * (PROV_LOWEST_RATE[year].BC / 100);
+}
+
+// ─── PROVINCIAL CPP / EI NON-REFUNDABLE CREDITS ───────────────────────────────
+// Provincial forms (e.g. BC428 line 5824, AB428, SK428) mirror the federal
+// Line 30800 base: only the 4.95% base portion of CPP1 (not the enhanced 1%)
+// and the employee EI premium. Credits are applied at the provincial lowest rate.
+
+function provCppEiCred(cppNrtcBase, eiPremium, loRate) {
+  return (cppNrtcBase + eiPremium) * loRate;
 }
 
 // ─── BC LOW-INCOME TAX REDUCTION ─────────────────────────────────────────────
@@ -36,14 +45,16 @@ function bcLowIncomeReduction(netIncome, year) {
 // ─── BC PROVINCIAL TAX ───────────────────────────────────────────────────────
 // Returns { provTax, reduction, isInClawbackZone }
 
-export function calcProvBC(taxableIncome, netIncome, year) {
+export function calcProvBC(taxableIncome, netIncome, year, cppNrtcBase, eiPremium) {
+  const loRate   = PROV_LOWEST_RATE[year].BC / 100;
   const brackets = PROV_BRACKETS[year].BC;
   const rawTax   = bracketedTax(taxableIncome, brackets);
   const bpaCred  = bcBpaCredit(year);
+  const cppEiCred = provCppEiCred(cppNrtcBase, eiPremium, loRate);
   const reduction = bcLowIncomeReduction(netIncome, year);
 
   // Non-refundable guard: tax never drops below $0
-  const provTax = Math.max(0, rawTax - bpaCred - reduction);
+  const provTax = Math.max(0, rawTax - bpaCred - cppEiCred - reduction);
 
   const { lo, hi } = BC_CLAWBACK[year];
   const isInClawbackZone = netIncome > lo && netIncome < hi;
@@ -54,21 +65,22 @@ export function calcProvBC(taxableIncome, netIncome, year) {
 // ─── GENERIC PROVINCIAL TAX (AB / SK) ────────────────────────────────────────
 // Returns { provTax, isInClawbackZone }
 
-export function calcProvGeneric(taxableIncome, province, year) {
+export function calcProvGeneric(taxableIncome, province, year, cppNrtcBase, eiPremium) {
   const brackets = PROV_BRACKETS[year][province];
   const bpa      = BPA_PARAMS[year][province];
-  const loRate   = PROV_LOWEST_RATE[province] / 100;
+  const loRate   = PROV_LOWEST_RATE[year][province] / 100;
 
-  const rawTax  = bracketedTax(taxableIncome, brackets);
-  const bpaCred = bpa * loRate;
-  const provTax = Math.max(0, rawTax - bpaCred);
+  const rawTax    = bracketedTax(taxableIncome, brackets);
+  const bpaCred   = bpa * loRate;
+  const cppEiCred = provCppEiCred(cppNrtcBase, eiPremium, loRate);
+  const provTax   = Math.max(0, rawTax - bpaCred - cppEiCred);
 
   return { provTax, isInClawbackZone: false };
 }
 
 // ─── COMBINED DISPATCHER ─────────────────────────────────────────────────────
 
-export function calcProv(taxableIncome, netIncome, province, year) {
-  if (province === 'BC') return calcProvBC(taxableIncome, netIncome, year);
-  return calcProvGeneric(taxableIncome, province, year);
+export function calcProv(taxableIncome, netIncome, province, year, cppNrtcBase, eiPremium) {
+  if (province === 'BC') return calcProvBC(taxableIncome, netIncome, year, cppNrtcBase, eiPremium);
+  return calcProvGeneric(taxableIncome, province, year, cppNrtcBase, eiPremium);
 }

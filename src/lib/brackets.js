@@ -184,17 +184,6 @@ export const PROV_MEDICAL_FLOOR = {
   2026: { AB: 2942, BC: 2748, SK: 2736 },
 };
 
-// ─── TAX-FREE INCOME FLOORS FOR OPTIMIZATION ENGINE ──────────────────────────
-// AB and SK: dynamic — equals the federal BPA fedMax for the selected year.
-// BC: fixed at $21,000. This is an empirical optimization floor tracking the
-//     true zero-tax liability threshold in BC, caused by the BC Tax Reduction
-//     credit stacking on top of the provincial BPA. It is NOT a statutory CRA
-//     baseline and does not change with annual indexing.
-
-export const TAX_FREE_FLOOR = {
-  BC: 21000,
-};
-
 // ─── PROVINCE DISPLAY NAMES ──────────────────────────────────────────────────
 
 export const PROVINCE_NAMES = {

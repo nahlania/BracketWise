@@ -278,7 +278,7 @@ function HowItWorksModal({ onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg h-[calc(100vh-4rem)] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto">
 
         <div className="relative flex flex-col items-center text-center px-10 pt-8 pb-5 border-b border-slate-100">
           <button
@@ -361,6 +361,13 @@ function EmptyState() {
                   <div className={`${skRow} w-20`} />
                   <div className={`${skRow} w-12`} />
                 </div>
+                <div className="border-t border-brand-200/60 pt-1.5 flex justify-between">
+                  <div className={`${skRow} w-20`} />
+                  <div className={`${skRow} w-12`} />
+                </div>
+                <div className={`${skRow} w-full`} />
+                <div className={`${skRow} w-full`} />
+                <div className={`${skRow} w-full`} />
                 <div className={`${skRow} w-full`} />
               </div>
             </div>
@@ -695,10 +702,16 @@ export default function App() {
     }
   };
 
+  const remainingMonths = useMemo(() => {
+    const now = new Date();
+    if (Number(year) === now.getFullYear()) return 12 - now.getMonth();
+    return 12;
+  }, [year]);
+
   // Available Cash
   const [availableCashInput, setAvailableCashInput] = useState(0);
   const [cashIsMonthly, setCashIsMonthly]           = useState(true);
-  const availableCash = cashIsMonthly ? availableCashInput * 12 : availableCashInput;
+  const availableCash = cashIsMonthly ? availableCashInput * remainingMonths : availableCashInput;
 
   // ── Calculation ─────────────────────────────────────────────────────────────
   // Debounce the calculation inputs so the results panel doesn't flash with
@@ -771,10 +784,14 @@ export default function App() {
     }
   }, [committedInputs, hasIncome]);
 
-  const monthlyLiabilities = result ? result.totalLiabilities / 12 : 0;
-  const monthlyFhsa        = result ? result.fhsaContrib / 12 : 0;
-  const monthlyRrsp        = result ? result.rrspContrib / 12 : 0;
-  const monthlyTfsa        = result ? result.tfsa / 12 : 0;
+  const estimatedRefund = result
+    ? Math.max(0, (result.t4TotalTax + result.t4Cpp + result.ei) - (result.totalTax + result.totalCpp + result.ei))
+    : 0;
+
+  const monthlyLiabilities = result ? Math.max(0, result.totalLiabilities - estimatedRefund) / remainingMonths : 0;
+  const monthlyFhsa        = result ? result.fhsaContrib / remainingMonths : 0;
+  const monthlyRrsp        = result ? result.rrspContrib / remainingMonths : 0;
+  const monthlyTfsa        = result ? result.tfsa / remainingMonths : 0;
 
   const fhsaLifetimeReached = result
     ? (LIMITS[committedInputs.year].fhsaLifetime - committedInputs.fhsaLifetimeUsed - result.fhsaContrib) <= 0
@@ -984,7 +1001,9 @@ export default function App() {
             {availableCashInput > 0 && (
               <p className="text-xs text-slate-800 font-medium text-right">
                 {cashIsMonthly
-                  ? <>Equal to <strong className="text-xs text-slate-800 font-medium">${fmt(availableCash)}</strong> annually</>
+                  ? remainingMonths < 12
+                    ? <>${fmt(availableCashInput)}/mo × {remainingMonths} months remaining = <strong className="text-xs text-slate-800 font-medium">${fmt(availableCash)}</strong></>
+                    : <>Equal to <strong className="text-xs text-slate-800 font-medium">${fmt(availableCash)}</strong> annually</>
                   : <>Equal to <strong className="text-xs text-slate-800 font-medium">${fmt(availableCash / 12)}</strong> monthly</>}
               </p>
             )}
@@ -1115,9 +1134,10 @@ export default function App() {
 
             {/* Save & Optimize Your Tax */}
             <SectionCard title="Save & Optimize Your Tax" className="flex-1 flex flex-col">
+              <p className="text-xs text-slate-400 -mt-2 mb-3">Based on {remainingMonths} month{remainingMonths !== 1 ? 's' : ''} remaining in {year}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
                 {(() => {
-                  const s1 = step1Note(result.totalLiabilities, availableCash);
+                  const s1 = step1Note(result.totalLiabilities, availableCash, remainingMonths, estimatedRefund);
                   return (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -1212,15 +1232,17 @@ export default function App() {
               {(() => {
                 const grossLiabilities = result.totalTax + result.totalCpp + result.ei;
                 const totalWithheld    = result.t4TotalTax + result.t4Cpp + result.ei;
-                const estimatedRefund  = Math.max(0, totalWithheld - grossLiabilities);
                 const cppAndEi         = result.totalCpp + result.ei;
                 const beforeGrossLiab  = result.beforeFedTax + result.beforeProvTax + cppAndEi;
 
                 const tableRows = [
                   { label: 'Federal Tax',                  tip: TOOLTIPS.fedTax,           after: result.fedTax,    before: result.beforeFedTax,  prefix: ''  },
                   { label: `Provincial Tax (${province})`, tip: TOOLTIPS.provTax,          after: result.provTax,   before: result.beforeProvTax, prefix: ''  },
-                  ...(cppAndEi > 0 ? [
-                    { label: 'CPP & EI',                   tip: TOOLTIPS.seCpp,            after: cppAndEi,         before: null,                 prefix: ''  },
+                  ...((result.t4Cpp + result.ei) > 0 ? [
+                    { label: 'Employment CPP & EI',        tip: TOOLTIPS.seCpp,            after: result.t4Cpp + result.ei, before: null,           prefix: ''  },
+                  ] : []),
+                  ...(result.seCpp > 0 ? [
+                    { label: 'SE CPP',                     tip: TOOLTIPS.seCpp,            after: result.seCpp,     before: null,                 prefix: ''  },
                   ] : []),
                   { label: 'Total Liabilities',            tip: TOOLTIPS.totalLiabilities, after: grossLiabilities, before: beforeGrossLiab,      prefix: '', bold: true },
                   ...(totalWithheld > 0 ? [
@@ -1240,11 +1262,10 @@ export default function App() {
                         tooltip={TOOLTIPS.taxSaving}
                       />
                       <StatPill
-                        label="Total Year-End Owing"
-                        value={`$${fmt(result.totalLiabilities)}`}
-                        tooltip={TOOLTIPS.yearEndOwing}
-                        note={estimatedRefund > 0 ? `+$${fmt(estimatedRefund)} refund expected` : undefined}
-                        noteAccent={estimatedRefund > 0}
+                        label={estimatedRefund > 0 ? 'Refund Expected' : 'Year-End Owing'}
+                        value={estimatedRefund > 0 ? `+$${fmt(estimatedRefund)}` : `$${fmt(result.totalLiabilities)}`}
+                        accent={estimatedRefund > 0}
+                        tooltip={estimatedRefund > 0 ? TOOLTIPS.estimatedRefund : TOOLTIPS.yearEndOwing}
                       />
                     </div>
 
@@ -1322,8 +1343,9 @@ export default function App() {
         </div>
 
       </main>
-      {/* ── bottom gradient ──────────────────────────────────────────── */}
+      {/* ── bottom gradient (deactivated) ───────────────────────────────
       <div className="pointer-events-none absolute bottom-4 inset-x-0 h-4 z-10" style={{ background: 'linear-gradient(to bottom, transparent, #0f172a)' }} />
+      */}
       </div>
 
       {/* ── FOOTER / DISCLAIMER ──────────────────────────────────────────── */}

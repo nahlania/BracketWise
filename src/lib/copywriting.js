@@ -23,12 +23,25 @@ export function clawbackAlert(province) {
 // Each returns { variant: 'success' | 'info' | 'warning', text }, covering the
 // edge cases for the "Save & Optimize Your Tax" action plan.
 
-export function step1Note(totalLiabilities, availableCash) {
+export function step1Note(totalLiabilities, availableCash, remainingMonths = 12, estimatedRefund = 0) {
+  if (totalLiabilities > 0 && estimatedRefund >= totalLiabilities) {
+    return {
+      variant: 'success',
+      text: `Your $${fmt(totalLiabilities)} SE CPP is deducted from your $${fmt(estimatedRefund)} refund — no cash needed from savings.`,
+    };
+  }
+  if (totalLiabilities > 0 && estimatedRefund > 0) {
+    const netOwing = totalLiabilities - estimatedRefund;
+    return {
+      variant: 'warning',
+      text: `Your refund covers $${fmt(estimatedRefund)} of your owing. Set aside $${fmt(netOwing)} ($${fmt(netOwing / remainingMonths)}/month) for the balance.`,
+    };
+  }
   if (availableCash <= 0) {
     if (totalLiabilities > 0) {
       return {
         variant: 'warning',
-        text: `Enter your Available Cash above to start your savings plan. You'll need to save $${fmt(totalLiabilities)} ($${fmt(totalLiabilities / 12)}/month) to cover this year's projected owing.`,
+        text: `Enter your Available Cash above to start your savings plan. You'll need to save $${fmt(totalLiabilities)} ($${fmt(totalLiabilities / remainingMonths)}/month) to cover this year's projected owing.`,
       };
     }
     return {
@@ -40,7 +53,7 @@ export function step1Note(totalLiabilities, availableCash) {
   if (diff < 0) {
     return {
       variant: 'warning',
-      text: `Your available cash falls $${fmt(-diff)} short of your year-end owing. Consider saving an extra $${fmt(-diff / 12)}/month.`,
+      text: `Your available cash falls $${fmt(-diff)} short of your year-end owing. Consider saving an extra $${fmt(-diff / remainingMonths)}/month.`,
     };
   }
   if (diff === 0) {

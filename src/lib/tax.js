@@ -7,9 +7,7 @@
   LIMITS,
   MEDICAL_FLOOR,
   PROV_MEDICAL_FLOOR,
-
   PROV_LOWEST_RATE,
-  TAX_FREE_FLOOR,
 } from './brackets.js';
 import { calcProv } from './taxBC.js';
 
@@ -206,10 +204,10 @@ function calcFhsaRoom(alreadyThisYear, lifetimeUsed, roomForYear, year) {
 // ─── OPTIMIZATION FLOOR ──────────────────────────────────────────────────────
 
 function getFloor(province, year) {
-  if (province === 'BC') return TAX_FREE_FLOOR.BC;
-  // AB / SK zero-tax threshold = federal fedMax.
-  // nrcRate equals fedFirstRate (dynamic), so (fedBpa × nrcRate) / fedFirstRate = fedBpa.
-  // Provincial BPA (e.g. AB $22,323) exceeds fedMax in all years, so federal is binding.
+  // Federal BPA is the binding zero-tax floor for all provinces:
+  // - AB / SK provincial BPAs exceed fedMax, so federal is the last threshold where tax > 0.
+  // - BC provincial tax reaches $0 at ~$25,570 (BPA + full LITR), well above fedMax,
+  //   so federal tax is still owed between $16,452–$25,570 — we must not stop there.
   return BPA_PARAMS[year].fedMax;
 }
 
@@ -375,9 +373,11 @@ export function calculateTax(inputs) {
     lastPass = singlePass(inputs, rrspContrib, fhsaContrib);
     const { totalTax, cpp: loopCpp } = lastPass;
     const loopSeCpp      = loopCpp.seCpp1 + loopCpp.seCpp2;
-    const loopTaxOwing   = Math.max(0, totalTax - t4TotalTax);
-    const totalLiabilities = loopTaxOwing + loopSeCpp;
-    const investablePool   = Math.max(0, availableCash - totalLiabilities);
+    // Only reserve cash the user must actually pay out-of-pocket.
+    // If T4 withholding covers both income tax and SE CPP, loopCashNeeded = 0
+    // and the full available cash flows to FHSA/RRSP.
+    const loopCashNeeded = Math.max(0, totalTax - t4TotalTax + loopSeCpp);
+    const investablePool = Math.max(0, availableCash - loopCashNeeded);
 
     // Priority 1: FHSA (immediate tax deduction + tax-free growth)
     const prevFhsaContrib = fhsaContrib;

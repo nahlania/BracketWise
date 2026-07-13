@@ -67,7 +67,7 @@ function InfoTooltip({ text }) {
 
 // ─── STEPPER INPUT ────────────────────────────────────────────────────────────
 
-function StepperInput({ label, value, onChange, prefix = '$', suffix = '', tooltip, children, className = '', inputRef }) {
+function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlineSuffix = '', tooltip, children, className = '', inputRef, step = 1000, min, max }) {
   const [trailingDot, setTrailingDot] = useState(false);
 
   const handleChange = (e) => {
@@ -78,6 +78,21 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', toolt
     } else {
       setTrailingDot(false);
       onChange(raw === '' ? 0 : parseFloat(raw) || 0);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowUp' ? step : -step;
+      let next = Math.round((value + delta) * 1e10) / 1e10;
+      if (min !== undefined) next = Math.max(min, next);
+      if (max !== undefined) next = Math.min(max, next);
+      setTrailingDot(false);
+      onChange(next);
+      e.target.dispatchEvent(new CustomEvent('stepper-commit', { bubbles: true }));
+    } else if (e.key === 'Enter') {
+      e.target.dispatchEvent(new CustomEvent('stepper-commit', { bubbles: true }));
     }
   };
 
@@ -96,12 +111,19 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', toolt
           <span className="px-2 text-xs text-slate-400 bg-slate-50 border-r border-slate-200 py-2 shrink-0">{prefix}</span>
         )}
         <input
+          role="spinbutton"
+          aria-valuenow={value}
+          aria-valuemin={min}
+          aria-valuemax={max}
           type="text"
           value={displayValue}
           onChange={handleChange}
-          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+          onKeyDown={handleKeyDown}
           className="w-full min-w-0 px-2 py-2 text-sm text-slate-800 font-semibold bg-white outline-none text-left"
         />
+        {inlineSuffix && (
+          <span className="pr-2 text-sm font-semibold text-slate-800 select-none">{inlineSuffix}</span>
+        )}
         {suffix && (
           <span className="px-2 text-xs text-slate-400 bg-slate-50 border-l border-slate-200 py-2 shrink-0">{suffix}</span>
         )}
@@ -344,18 +366,18 @@ function EmptyState() {
   const skBlock = 'h-5 rounded bg-slate-200 animate-pulse';
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 h-full">
 
       {/* Skeleton: Save & Optimize */}
-      <SectionCard title="Save & Optimize Your Tax">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <SectionCard title="Save & Optimize Your Tax" className="flex-1 flex flex-col">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
           {[0, 1, 2].map(i => (
             <div key={i} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-brand-100 border border-brand-200 shrink-0 animate-pulse" />
                 <div className={`${skRow} w-24`} />
               </div>
-              <div className="p-3 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-2">
+              <div className="flex-1 p-3 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-2">
                 <div className={`${skBlock} w-16`} />
                 <div className="border-t border-brand-200/60 pt-1.5 flex justify-between">
                   <div className={`${skRow} w-20`} />
@@ -378,7 +400,7 @@ function EmptyState() {
       {/* Skeleton: Income & Liabilities */}
       <SectionCard title="Income & Liabilities After Optimization">
         {/* Row 1 — 3 stat pills */}
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-2">
           {[0, 1, 2].map(i => (
             <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-2">
               <div className={`${skRow} w-16`} />
@@ -386,8 +408,8 @@ function EmptyState() {
             </div>
           ))}
         </div>
-        {/* Row 2 — 2 stat pills (Year-End Owing + Tax Saving) */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Row 2 — 2 stat pills (Tax Saving + Year-End Owing) */}
+        <div className="grid grid-cols-2 gap-2">
           {[0, 1].map(i => (
             <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-2">
               <div className={`${skRow} w-24`} />
@@ -397,24 +419,7 @@ function EmptyState() {
         </div>
         {/* See breakdown toggle */}
         <div className="mt-2 flex justify-end">
-          <div className={`${skRow} w-24`} />
-        </div>
-      </SectionCard>
-
-      {/* Skeleton: Marginal Rate Chart */}
-      <SectionCard title="Combined Marginal Tax Rate">
-        <div className="flex gap-3 items-stretch">
-          <div className="flex flex-col gap-2 shrink-0 w-32">
-            {[0, 1].map(i => (
-              <div key={i} className="flex-1 p-2 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col items-center justify-center gap-2">
-                <div className={`${skRow} w-16`} />
-                <div className={`${skBlock} w-10`} />
-              </div>
-            ))}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="w-full h-[150px] rounded-xl bg-slate-100 animate-pulse" />
-          </div>
+          <span className="text-xs font-bold text-brand-600 opacity-40">See breakdown ▾</span>
         </div>
       </SectionCard>
 
@@ -568,7 +573,7 @@ function MarginalRateChart({ plotData, incomeBefore, incomeAfter, marginalRateBe
 
       {/* Axis titles */}
       <text x={W / 2} y={PAD.top + cH + 40} textAnchor="middle" fontSize="14" fill="#94a3b8">Annual Income</text>
-      <text x={12} y={H / 2 + 4} textAnchor="middle" fontSize="14" fill="#94a3b8" transform={`rotate(-90, 12, ${H / 2})`}>Marginal Rate</text>
+      <text x={12} y={H / 2 + 4} textAnchor="middle" fontSize="14" fill="#94a3b8" transform={`rotate(-90, 12, ${H / 2})`}>Combined Marginal Tax Rate</text>
 
       {/* Hover capture surface */}
       <rect
@@ -758,11 +763,16 @@ export default function App() {
         lastFocusedInputRef.current = e.target;
       }
     };
+    const handleStepperCommit = () => {
+      setCommittedInputs(calcInputsRef.current);
+    };
     document.addEventListener('focusout', handleFocusOut);
     document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('stepper-commit', handleStepperCommit);
     return () => {
       document.removeEventListener('focusout', handleFocusOut);
       document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('stepper-commit', handleStepperCommit);
     };
   }, []);
 
@@ -865,9 +875,10 @@ export default function App() {
         ))}
       </div> */}
 
-      {/* ── top gradient ──────────────────────────────────────────── */}
-      <div className="relative flex-1 min-h-0">
+      {/* ── top gradient (deactivated) ───────────────────────────────
       <div className="pointer-events-none absolute top-4 inset-x-0 h-4 z-10" style={{ background: 'linear-gradient(to top, transparent, #0f172a)' }} />
+      */}
+      <div className="relative flex-1 min-h-0">
       <main className="custom-scrollbar h-full max-w-7xl mx-auto px-6 pb-4 pt-4 grid grid-cols-1 lg:grid-cols-2 gap-5 w-full overflow-y-auto lg:overflow-hidden">
 
         {/* ══ LEFT COLUMN — PROFILE COCKPIT ════════════════════════════════ */}
@@ -982,7 +993,7 @@ export default function App() {
         </SectionCard>
 
         {/* § Available Cash */}
-        <SectionCard title="Available Liquid Savings">
+        <SectionCard title="Money You Can Set Aside">
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
               <div className="flex flex-col gap-1.5 pt-[1.625rem]">
@@ -1062,8 +1073,7 @@ export default function App() {
                 step={0.5}
                 min={0}
                 max={100}
-                prefix=""
-                suffix="%"
+                prefix="%"
                 tooltip={TOOLTIPS.rrspMatchPct}
               />
             </div>
@@ -1113,7 +1123,7 @@ export default function App() {
 
         <div className="grid flex-1 min-h-0">
 
-        <FadeSwitch show={!hasIncome} className="[grid-area:1/1] w-full">
+        <FadeSwitch show={!hasIncome} className="[grid-area:1/1] w-full h-full">
           {() => <EmptyState />}
         </FadeSwitch>
 
@@ -1273,66 +1283,69 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setBreakdownOpen(v => !v)}
-                      className="mt-2 text-xs text-slate-400 hover:text-brand-600 flex items-center gap-1 transition-colors w-full justify-end"
+                      className="mt-2 text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 transition-colors w-full justify-end"
                     >
                       {breakdownOpen ? 'Hide breakdown ▴' : 'See breakdown ▾'}
                     </button>
 
                     {/* Expandable 3-column breakdown */}
                     {breakdownOpen && (
-                      <div className="mt-1 rounded-xl border border-slate-200 overflow-hidden text-xs">
-                        <div className="grid grid-cols-[1fr_128px_128px] font-semibold text-slate-400 px-3 py-2 bg-slate-50 border-b border-slate-200">
-                          <span></span>
-                          <span className="text-right whitespace-nowrap">After Optimization</span>
-                          <span className="text-right whitespace-nowrap">Before Optimization</span>
-                        </div>
-                        {tableRows.map(({ label, tip, after, before, prefix, bold }) => (
-                          <div key={label} className={`grid grid-cols-[1fr_128px_128px] px-3 py-2 border-t ${bold ? 'border-slate-300 bg-slate-50/70 font-semibold' : 'border-slate-100'}`}>
-                            <span className={`flex items-center gap-1 ${bold ? 'text-slate-700' : 'text-slate-500'}`}>
-                              {label} {tip && <InfoTooltip text={tip} />}
-                            </span>
-                            <span className={`text-right font-semibold ${bold ? 'text-slate-800' : before !== null && after < before ? 'text-brand-700' : 'text-slate-700'}`}>
-                              {prefix}${fmt(after)}
-                            </span>
-                            <span className={`text-right ${before === null ? 'text-[11px] italic text-slate-400' : 'text-slate-400'}`}>
-                              {before === null ? 'same' : `${prefix}$${fmt(before)}`}
-                            </span>
+                      <>
+                        <h3 className="mt-2 text-sm font-bold uppercase tracking-widest text-brand-700 mb-3">Before &amp; After Optimization</h3>
+                        <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
+                          <div className="grid grid-cols-[1fr_128px_128px] font-semibold text-slate-400 px-3 py-2 bg-slate-50 border-b border-slate-200">
+                            <span></span>
+                            <span className="text-right whitespace-nowrap">After</span>
+                            <span className="text-right whitespace-nowrap">Before</span>
                           </div>
-                        ))}
-                      </div>
+                          {tableRows.map(({ label, tip, after, before, prefix, bold }) => (
+                            <div key={label} className={`grid grid-cols-[1fr_128px_128px] px-3 py-2 border-t ${bold ? 'border-slate-300 bg-slate-50/70 font-semibold' : 'border-slate-100'}`}>
+                              <span className={`flex items-center gap-1 ${bold ? 'text-slate-700' : 'text-slate-500'}`}>
+                                {label} {tip && <InfoTooltip text={tip} />}
+                              </span>
+                              <span className={`text-right font-semibold ${bold ? 'text-slate-800' : before !== null && after < before ? 'text-brand-700' : 'text-slate-700'}`}>
+                                {prefix}${fmt(after)}
+                              </span>
+                              <span className={`text-right ${before === null ? 'text-[11px] italic text-slate-400' : 'text-slate-400'}`}>
+                                {before === null ? 'same' : `${prefix}$${fmt(before)}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Marginal Rate Chart */}
+                        <div className="mt-6">
+                          <div className="flex gap-2 items-center">
+                            <div className="flex flex-col gap-2 shrink-0 w-32">
+                              <div className="flex-1 p-2.5 rounded-xl border-2 border-brand-600 flex flex-col items-center justify-center text-center gap-0.5">
+                                <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">After Opt. <InfoTooltip text={TOOLTIPS.marginalAfter} /></p>
+                                <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateAfter)}</p>
+                              </div>
+                              {/* <div className="flex-1 p-1 rounded-xl bg-brand-100/55 flex flex-col items-center justify-center text-center gap-0.5">
+                                <p className="text-xs text-brand-700 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Save in Tax <InfoTooltip text={TOOLTIPS.taxSaving} /></p>
+                                <p className="text-sm font-bold text-slate-900">${fmt(result.taxSaving)}</p>
+                              </div> */}
+                              <div className="flex-1 p-2.5 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center gap-0.5">
+                                <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Before Opt.<InfoTooltip text={TOOLTIPS.marginalBefore} /></p>
+                                <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateBefore)}</p>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <MarginalRateChart
+                                plotData={result.combinedBracketsPlotData}
+                                incomeBefore={result.incomeBeforeContributions}
+                                incomeAfter={result.incomeAfterContributions}
+                                marginalRateBefore={result.marginalRateBefore}
+                                marginalRateAfter={result.marginalRateAfter}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </>
                 );
               })()}
-            </SectionCard>
-
-            {/* Marginal Rate Chart */}
-            <SectionCard title="Combined Marginal Tax Rate">
-              <div className="flex gap-2 items-center">
-                <div className="flex flex-col gap-2 shrink-0 w-32">
-                  <div className="flex-1 p-2.5 rounded-xl border-2 border-brand-600 flex flex-col items-center justify-center text-center gap-0.5">
-                    <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">After Opt. <InfoTooltip text={TOOLTIPS.marginalAfter} /></p>
-                    <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateAfter)}</p>
-                  </div>
-                  {/* <div className="flex-1 p-1 rounded-xl bg-brand-100/55 flex flex-col items-center justify-center text-center gap-0.5">
-                    <p className="text-xs text-brand-700 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Save in Tax <InfoTooltip text={TOOLTIPS.taxSaving} /></p>
-                    <p className="text-sm font-bold text-slate-900">${fmt(result.taxSaving)}</p>
-                  </div> */}
-                  <div className="flex-1 p-2.5 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center gap-0.5">
-                    <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Before Opt.<InfoTooltip text={TOOLTIPS.marginalBefore} /></p>
-                    <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateBefore)}</p>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <MarginalRateChart
-                    plotData={result.combinedBracketsPlotData}
-                    incomeBefore={result.incomeBeforeContributions}
-                    incomeAfter={result.incomeAfterContributions}
-                    marginalRateBefore={result.marginalRateBefore}
-                    marginalRateAfter={result.marginalRateAfter}
-                  />
-                </div>
-              </div>
             </SectionCard>
           </div>
           )}

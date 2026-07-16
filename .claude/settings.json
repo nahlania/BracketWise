@@ -10,7 +10,17 @@
       "PowerShell(npm install lucide-react 2>&1)",
       "Bash(git rm *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx playwright *)",
+      "Bash(node \"C:\\\\Users\\\\nahla\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-nahla-Documents-ClientsAndProjects-Nahlania-Playground-BracketWise\\\\9acc7dc5-1142-4237-bc20-1ab367d3b486\\\\scratchpad\\\\screenshot.js\")",
+      "Bash(node .tmp-screenshot.cjs)",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "Bash(timeout 20 bash -c 'until curl -sf http://localhost:5184/ >/dev/null; do sleep 1; done')",
+      "Bash(node .tmp-screenshot2.cjs)",
+      "Bash(pkill -f \"vite --port 5184\")",
+      "Bash(timeout 20 bash -c 'until curl -sf http://localhost:5185/ >/dev/null; do sleep 1; done')",
+      "Bash(node .tmp-screenshot3.cjs)"
     ]
   }
 }

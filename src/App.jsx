@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ChevronDown } from 'lucide-react';
 import { calculateTax } from './lib/tax.js';
 import { PROVINCE_NAMES, LIMITS } from './lib/brackets.js';
 import {
@@ -52,7 +52,7 @@ function InfoTooltip({ text }) {
       {pos && createPortal(
         <span
           role="tooltip"
-          className={`fixed z-50 -translate-x-1/2 w-56 px-3 py-2 rounded-lg bg-slate-800 text-white text-xs leading-snug shadow-lg transition-all duration-200 ease-out origin-top ${
+          className={`fixed z-50 -translate-x-1/2 w-56 px-3 py-2 rounded-lg bg-slate-200 text-slate-900 border border-slate-300 text-xs font-semibold leading-snug shadow-xl transition-all duration-200 ease-out origin-top ${
             visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
           }`}
           style={{ top: pos.top, left: pos.left }}
@@ -102,13 +102,13 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlin
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 leading-tight">
+      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 leading-tight">
         {label}
         {tooltip && <InfoTooltip text={tooltip} />}
       </span>
-      <div ref={inputRef} className="flex items-center min-w-0 border border-slate-200 rounded-lg overflow-hidden transition-colors focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
+      <div ref={inputRef} className="flex items-center h-10 min-w-0 border border-slate-300 rounded-full bg-white overflow-hidden transition-colors focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
         {prefix && (
-          <span className="px-2 text-xs text-slate-400 bg-slate-50 border-r border-slate-200 py-2 shrink-0">{prefix}</span>
+          <span className="h-full flex items-center pl-3 text-sm text-slate-400 font-semibold select-none shrink-0">{prefix}</span>
         )}
         <input
           role="spinbutton"
@@ -119,13 +119,13 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlin
           value={displayValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          className="w-full min-w-0 px-2 py-2 text-sm text-slate-800 font-semibold bg-white outline-none text-left"
+          className={`w-full h-full min-w-0 text-sm text-slate-800 font-semibold bg-white outline-none text-left ${prefix ? 'pl-1 pr-3' : 'px-3'}`}
         />
         {inlineSuffix && (
-          <span className="pr-2 text-sm font-semibold text-slate-800 select-none">{inlineSuffix}</span>
+          <span className="h-full flex items-center pr-2 text-sm font-semibold text-slate-800 select-none">{inlineSuffix}</span>
         )}
         {suffix && (
-          <span className="px-2 text-xs text-slate-400 bg-slate-50 border-l border-slate-200 py-2 shrink-0">{suffix}</span>
+          <span className="h-full flex items-center pr-3 text-sm text-slate-400 font-semibold select-none shrink-0">{suffix}</span>
         )}
       </div>
       {children}
@@ -135,11 +135,23 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlin
 
 // ─── CHIP ─────────────────────────────────────────────────────────────────────
 
-function Chip({ label, active, onClick, radio = false }) {
+function Chip({ label, active, onClick, radio = false, contract = false }) {
+  if (contract && active) {
+    return (
+      <button
+        onClick={onClick}
+        aria-label={label}
+        title={label}
+        className="flex items-center justify-center w-10 h-10 shrink-0 rounded-full text-sm font-bold border transition-all duration-200 bg-white text-slate-500 border-slate-200 hover:border-brand-300 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1"
+      >
+        ✓
+      </button>
+    );
+  }
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1 ${
+      className={`flex items-center gap-1.5 h-10 px-3 rounded-full text-xs font-semibold border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1 shrink-0 ${
         active
           ? 'bg-white text-brand-600 border-brand-500'
           : 'bg-white text-slate-500 border-slate-200 hover:border-brand-300 hover:text-brand-600'
@@ -153,10 +165,10 @@ function Chip({ label, active, onClick, radio = false }) {
 
 // ─── SECTION CARD ─────────────────────────────────────────────────────────────
 
-function SectionCard({ title, children, className = '' }) {
+function SectionCard({ title, children, className = '', dark = false }) {
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200/60 p-[0.833rem] shadow-sm ${className}`}>
-      <h3 className="text-sm font-bold uppercase tracking-widest text-brand-700 mb-3">{title}</h3>
+    <div className={`rounded-2xl border p-[0.833rem] shadow-sm ${dark ? 'bg-slate-200 border-slate-300' : 'bg-slate-50 border-slate-200/60'} ${className}`}>
+      <h3 className={`text-sm font-bold uppercase tracking-widest mb-3 ${dark ? 'text-brand-700' : 'text-brand-700'}`}>{title}</h3>
       {children}
     </div>
   );
@@ -347,7 +359,7 @@ function HowItWorksModal({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors"
+            className="w-full py-2.5 rounded-full bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors"
           >
             Get Started
           </button>
@@ -368,8 +380,8 @@ function EmptyState() {
   return (
     <div className="flex flex-col gap-1.5 h-full">
 
-      {/* Skeleton: Save & Optimize */}
-      <SectionCard title="Save & Optimize Your Tax" className="flex-1 flex flex-col">
+      {/* Skeleton: Save & Optimize — DARK (swap 'dark' prop to revert) */}
+      <SectionCard title="Your Tax Savings Action Plan" className="flex-1 flex flex-col bg-gradient-to-b from-brand-50 to-brand-100 !border-brand-200" dark>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
           {[0, 1, 2].map(i => (
             <div key={i} className="flex flex-col gap-2">
@@ -377,28 +389,38 @@ function EmptyState() {
                 <div className="w-6 h-6 rounded-full bg-brand-100 border border-brand-200 shrink-0 animate-pulse" />
                 <div className={`${skRow} w-24`} />
               </div>
-              <div className="flex-1 p-3 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-2">
+              <div className="flex-1 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-2">
                 <div className={`${skBlock} w-16`} />
-                <div className="border-t border-brand-200/60 pt-1.5 flex justify-between">
+                <div className="border-t border-slate-200 pt-1.5 flex justify-between">
                   <div className={`${skRow} w-20`} />
                   <div className={`${skRow} w-12`} />
                 </div>
-                <div className="border-t border-brand-200/60 pt-1.5 flex justify-between">
+                <div className="border-t border-slate-200 pt-1.5 flex justify-between">
                   <div className={`${skRow} w-20`} />
                   <div className={`${skRow} w-12`} />
                 </div>
-                <div className={`${skRow} w-full`} />
                 <div className={`${skRow} w-full`} />
                 <div className={`${skRow} w-full`} />
                 <div className={`${skRow} w-full`} />
               </div>
             </div>
           ))}
+
+          {/* Step 4 — TFSA (full-width row) */}
+          <div className="sm:col-span-3">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-6">
+              <div className={`${skBlock} w-16 shrink-0`} />
+              <div className="flex-1 flex flex-col gap-1.5">
+                <div className={`${skRow} w-full`} />
+                <div className={`${skRow} w-3/4`} />
+              </div>
+            </div>
+          </div>
         </div>
       </SectionCard>
 
-      {/* Skeleton: Income & Liabilities */}
-      <SectionCard title="Income & Liabilities After Optimization">
+      {/* Skeleton: Income & Liabilities — DARK (swap 'dark' prop to revert) */}
+      <SectionCard title="Income & Liabilities After Optimization" className="bg-gradient-to-b from-slate-200 to-slate-300" dark>
         {/* Row 1 — 3 stat pills */}
         <div className="grid grid-cols-3 gap-2 mb-2">
           {[0, 1, 2].map(i => (
@@ -408,7 +430,7 @@ function EmptyState() {
             </div>
           ))}
         </div>
-        {/* Row 2 — 2 stat pills (Tax Saving + Year-End Owing) */}
+        {/* Row 2 — 2 stat pills */}
         <div className="grid grid-cols-2 gap-2">
           {[0, 1].map(i => (
             <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col gap-2">
@@ -433,15 +455,18 @@ function EmptyState() {
 
 function Dropdown({ value, onChange, options }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 w-full"
-    >
-      {options.map(o => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
+    <div className="relative w-full">
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="h-10 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-full pl-3 pr-8 cursor-pointer outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 w-full appearance-none"
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    </div>
   );
 }
 
@@ -523,6 +548,11 @@ function MarginalRateChart({ plotData, incomeBefore, incomeAfter, marginalRateBe
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-label="Combined marginal tax rate chart">
+      <defs>
+        <filter id="chart-tooltip-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#0f172a" floodOpacity="0.18" />
+        </filter>
+      </defs>
       {/* Grid */}
       {yTicks.map(t => (
         <line key={t} x1={PAD.left} x2={W - PAD.right} y1={yS(t)} y2={yS(t)} stroke="#e2e8f0" strokeWidth="1" />
@@ -540,7 +570,7 @@ function MarginalRateChart({ plotData, incomeBefore, incomeAfter, marginalRateBe
       {(incomeBefore ?? 0) > 0 && (
         <>
           <line x1={xBefore} x2={xBefore} y1={PAD.top} y2={PAD.top + cH} stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="5,4" />
-          <text x={xBefore + 4} y={PAD.top + 13} fontSize="10" fill="#64748b" fontWeight="500">Before</text>
+          <text x={xBefore + 4} y={PAD.top - 2} fontSize="10" fill="#94a3b8" fontWeight="600">Before</text>
         </>
       )}
 
@@ -548,7 +578,7 @@ function MarginalRateChart({ plotData, incomeBefore, incomeAfter, marginalRateBe
       {(incomeAfter ?? 0) > 0 && incomeAfter !== incomeBefore && (
         <>
           <line x1={xAfter} x2={xAfter} y1={PAD.top} y2={PAD.top + cH} stroke="var(--color-brand-600)" strokeWidth="2" />
-          <text x={xAfter + 4} y={PAD.top + 27} fontSize="10" fill="var(--color-brand-600)" fontWeight="600">After</text>
+          <text x={xAfter - 4} y={PAD.top - 2} textAnchor="end" fontSize="10" fill="var(--color-brand-500)" fontWeight="600">After</text>
         </>
       )}
 
@@ -610,9 +640,9 @@ function MarginalRateChart({ plotData, incomeBefore, incomeAfter, marginalRateBe
           <g pointerEvents="none">
             <line x1={hx} x2={hx} y1={PAD.top} y2={PAD.top + cH} stroke="#0f172a" strokeWidth="1" strokeDasharray="3,3" opacity="0.35" />
             <circle cx={hx} cy={hy} r="4" fill="var(--color-brand-600)" stroke="#fff" strokeWidth="1.5" />
-            <rect x={bx} y={by} width={boxW} height={boxH} rx="6" fill="#0f172a" opacity="0.92" />
+            <rect x={bx} y={by} width={boxW} height={boxH} rx="6" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" filter="url(#chart-tooltip-shadow)" />
             {lines.map((line, i) => (
-              <text key={i} x={bx + 10} y={by + 18 + i * 18} fontSize="13" fill="#fff" fontWeight={i === 0 ? '700' : '400'}>{line}</text>
+              <text key={i} x={bx + 10} y={by + 18 + i * 18} fontSize="13" fill="#0f172a" fontWeight={i === 0 ? '700' : '400'}>{line}</text>
             ))}
           </g>
         );
@@ -829,9 +859,6 @@ export default function App() {
     { key: 'medical',   label: 'Medical Expenses',   active: medicalActive,   toggle: () => { const next = !medicalActive;   setMedicalActive(next);   if (next) focusInput(medicalInputRef);   } },
   ];
 
-  const anyOtherIncome = capGainsActive || otherTaxableActive;
-  const anyDeductions  = childcareActive || medicalActive;
-
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-900 text-slate-900">
 
@@ -846,7 +873,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 border border-slate-700 hover:border-brand-500 hover:text-brand-300 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-slate-300 border border-slate-700 hover:border-brand-500 hover:text-brand-300 transition-colors"
           >
             <HelpCircle size={14} />
             <span>How it works</span>
@@ -885,7 +912,7 @@ export default function App() {
         <div className="custom-scrollbar flex flex-col gap-1.5 lg:h-full lg:overflow-y-auto lg:pr-1 py-4">
 
         {/* § Filing Details */}
-        <SectionCard title="Filing Details">
+        <SectionCard title="Filing Details" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-slate-500 leading-tight">Tax Year</span>
@@ -910,7 +937,7 @@ export default function App() {
         </SectionCard>
 
         {/* § T4 Employment */}
-        <SectionCard title="Employment Income">
+        <SectionCard title="Employment Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <StepperInput
               label="T4 Employment Income"
@@ -929,7 +956,7 @@ export default function App() {
         </SectionCard>
 
         {/* § Self-Employment + Other Income */}
-        <SectionCard title="Self-Employment & Other Income">
+        <SectionCard title="Self-Employment & Other Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <StepperInput
               label="SE Gross Revenue"
@@ -962,8 +989,8 @@ export default function App() {
           <hr className="border-slate-200 my-4" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-3">
-              <Chip label="Realized Capital Gains" active={capGainsActive} onClick={otherIncomeChips[0].toggle} />
+            <div className="flex items-end gap-1">
+              <Chip label="Realized Capital Gains" active={capGainsActive} onClick={otherIncomeChips[0].toggle} contract />
               {capGainsActive && (
                 <StepperInput
                   label="Realized Capital Gains"
@@ -971,11 +998,12 @@ export default function App() {
                   onChange={setCapitalGains}
                   tooltip={TOOLTIPS.capitalGains}
                   inputRef={capGainsInputRef}
+                  className="flex-1 min-w-0"
                 />
               )}
             </div>
-            <div className="flex flex-col gap-3">
-              <Chip label="Other Taxable Income" active={otherTaxableActive} onClick={otherIncomeChips[1].toggle} />
+            <div className="flex items-end gap-1">
+              <Chip label="Other Taxable Income" active={otherTaxableActive} onClick={otherIncomeChips[1].toggle} contract />
               {otherTaxableActive && (
                 <StepperInput
                   label="Other Taxable Income"
@@ -983,17 +1011,15 @@ export default function App() {
                   onChange={setOtherTaxableIncome}
                   tooltip={TOOLTIPS.otherTaxableIncome}
                   inputRef={otherTaxableInputRef}
+                  className="flex-1 min-w-0"
                 />
               )}
             </div>
           </div>
-          {!anyOtherIncome && (
-            <p className="text-xs text-slate-400 italic mt-1">No additional income sources selected.</p>
-          )}
         </SectionCard>
 
         {/* § Available Cash */}
-        <SectionCard title="Money You Can Set Aside">
+        <SectionCard title="Money You Can Set Aside" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
               <div className="flex flex-col gap-1.5 pt-[1.625rem]">
@@ -1023,7 +1049,7 @@ export default function App() {
 
         {/* § Registered Accounts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          <SectionCard title="First Home Savings Account">
+          <SectionCard title="First Home Savings Account" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
             <div className="flex flex-col gap-5">
               <StepperInput
                 label="FHSA Participation Room"
@@ -1051,7 +1077,7 @@ export default function App() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Retirement Savings Plan">
+          <SectionCard title="Retirement Savings Plan" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
             <div className="flex flex-col gap-5">
               <StepperInput
                 label="RRSP Contribution Room"
@@ -1081,10 +1107,10 @@ export default function App() {
         </div>
 
         {/* § Deductions & Credits — chips */}
-        <SectionCard title="Household Deductions &amp; Credits">
+        <SectionCard title="Household Deductions &amp; Credits" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-3">
-              <Chip label="Childcare Expenses" active={childcareActive} onClick={deductionChips[0].toggle} />
+            <div className="flex items-end gap-1">
+              <Chip label="Childcare Expenses" active={childcareActive} onClick={deductionChips[0].toggle} contract />
               {childcareActive && (
                 <StepperInput
                   label="Childcare Expenses"
@@ -1092,11 +1118,12 @@ export default function App() {
                   onChange={setChildcare}
                   tooltip={TOOLTIPS.childcare}
                   inputRef={childcareInputRef}
+                  className="flex-1 min-w-0"
                 />
               )}
             </div>
-            <div className="flex flex-col gap-3">
-              <Chip label="Medical Expenses" active={medicalActive} onClick={deductionChips[1].toggle} />
+            <div className="flex items-end gap-1">
+              <Chip label="Medical Expenses" active={medicalActive} onClick={deductionChips[1].toggle} contract />
               {medicalActive && (
                 <StepperInput
                   label="Medical Expenses"
@@ -1104,13 +1131,11 @@ export default function App() {
                   onChange={setMedicalExpenses}
                   tooltip={TOOLTIPS.medicalExpenses}
                   inputRef={medicalInputRef}
+                  className="flex-1 min-w-0"
                 />
               )}
             </div>
           </div>
-          {!anyDeductions && (
-            <p className="text-xs text-slate-400 italic mt-1">No deductions or credits selected.</p>
-          )}
         </SectionCard>
 
         </div>
@@ -1142,8 +1167,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Save & Optimize Your Tax */}
-            <SectionCard title="Save & Optimize Your Tax" className="flex-1 flex flex-col">
+            {/* Your Tax Savings Action Plan */}
+            <SectionCard title="Your Tax Savings Action Plan" className="flex-1 flex flex-col bg-gradient-to-b from-brand-50 to-brand-100 !border-brand-200" dark>
               <p className="text-xs text-slate-400 -mt-2 mb-3">Based on {remainingMonths} month{remainingMonths !== 1 ? 's' : ''} remaining in {year}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
                 {(() => {
@@ -1154,9 +1179,9 @@ export default function App() {
                         <StepBadge n={1} />
                         <p className="text-sm font-semibold text-slate-800">Save for Owings</p>
                       </div>
-                      <div className="flex-1 p-2.5 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-1.5">
+                      <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1.5">
                         <p className="text-base font-bold text-slate-900">${fmt(monthlyLiabilities)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
-                        <div className="flex justify-between text-xs border-t border-brand-200/60 pt-1.5 font-bold text-brand-900">
+                        <div className="flex justify-between text-xs border-t border-slate-200 pt-1.5 font-bold text-brand-900">
                           <span>Total Year-End Owing</span>
                           <span>${fmt(result.totalLiabilities)}</span>
                         </div>
@@ -1175,13 +1200,13 @@ export default function App() {
                         <StepBadge n={2} />
                         <p className="text-sm font-semibold text-slate-800">Contribute to FHSA</p>
                       </div>
-                      <div className="flex-1 p-2.5 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-1.5">
+                      <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1.5">
                         <p className="text-base font-bold text-slate-900">${fmt(monthlyFhsa)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
-                        <div className="flex justify-between text-xs text-slate-500 border-t border-brand-200/60 pt-1.5">
+                        <div className="flex justify-between text-xs text-slate-500 border-t border-slate-200 pt-1.5">
                           <span>Already Contributed</span>
                           <span className="font-semibold text-slate-700">${fmt(fhsaAlreadyThisYear)}</span>
                         </div>
-                        <div className="flex justify-between text-xs border-t border-brand-200/60 pt-1.5 font-bold text-brand-900">
+                        <div className="flex justify-between text-xs border-t border-slate-200 pt-1.5 font-bold text-brand-900">
                           <span>Total Year-End Contribution</span>
                           <span>${fmt(yearEndTotal)}</span>
                         </div>
@@ -1202,13 +1227,13 @@ export default function App() {
                         <StepBadge n={3} />
                         <p className="text-sm font-semibold text-slate-800">Contribute to RRSP</p>
                       </div>
-                      <div className="flex-1 p-2.5 rounded-xl bg-brand-50 border border-brand-200/60 flex flex-col gap-1.5">
+                      <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1.5">
                         <p className="text-base font-bold text-slate-900">${fmt(monthlyRrsp)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
-                        <div className="flex justify-between items-start gap-2 text-xs text-slate-500 border-t border-brand-200/60 pt-1.5">
+                        <div className="flex justify-between items-start gap-2 text-xs text-slate-500 border-t border-slate-200 pt-1.5">
                           <span className="leading-tight">Already Contributed &amp; Employer Match</span>
                           <span className="font-semibold text-slate-700 shrink-0">${fmt(alreadyAndMatch)}</span>
                         </div>
-                        <div className="flex justify-between text-xs border-t border-brand-200/60 pt-1.5 font-bold text-brand-900">
+                        <div className="flex justify-between text-xs border-t border-slate-200 pt-1.5 font-bold text-brand-900">
                           <span>Total Year-End Contribution</span>
                           <span>${fmt(yearEndTotal)}</span>
                         </div>
@@ -1222,7 +1247,7 @@ export default function App() {
                   if (!tfsa) return null;
                   return (
                     <div className="sm:col-span-3">
-                      <div className="p-2.5 rounded-xl bg-brand-50 border border-brand-200/60 flex items-center gap-6">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-6">
                         <p className="text-base font-bold text-slate-900 shrink-0">${fmt(monthlyTfsa)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
                         <StepNote variant={tfsa.variant} inline>{tfsa.text}</StepNote>
                       </div>
@@ -1233,7 +1258,7 @@ export default function App() {
             </SectionCard>
 
             {/* Income & Liabilities After Optimization */}
-            <SectionCard title="Income & Liabilities After Optimization">
+            <SectionCard title="Income & Liabilities After Optimization" className="bg-gradient-to-b from-slate-200 to-slate-300" dark>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <StatPill label="Gross Income"     value={`$${fmt(result.grossIncome)}`}    tooltip={TOOLTIPS.grossIncome} />
                 <StatPill label="After-Tax Income" value={`$${fmt(result.afterTaxIncome)}`} tooltip={TOOLTIPS.afterTaxIncome} />
@@ -1292,14 +1317,15 @@ export default function App() {
                     {breakdownOpen && (
                       <>
                         <h3 className="mt-2 text-sm font-bold uppercase tracking-widest text-brand-700 mb-3">Before &amp; After Optimization</h3>
-                        <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
-                          <div className="grid grid-cols-[1fr_128px_128px] font-semibold text-slate-400 px-3 py-2 bg-slate-50 border-b border-slate-200">
+
+                        <div className="rounded-xl border-2 border-slate-300 overflow-hidden text-xs">
+                          <div className="grid grid-cols-[1fr_128px_128px] font-semibold text-slate-500 px-3 py-2 bg-slate-50 border-b border-slate-200">
                             <span></span>
                             <span className="text-right whitespace-nowrap">After</span>
                             <span className="text-right whitespace-nowrap">Before</span>
                           </div>
                           {tableRows.map(({ label, tip, after, before, prefix, bold }) => (
-                            <div key={label} className={`grid grid-cols-[1fr_128px_128px] px-3 py-2 border-t ${bold ? 'border-slate-300 bg-slate-50/70 font-semibold' : 'border-slate-100'}`}>
+                            <div key={label} className={`grid grid-cols-[1fr_128px_128px] px-3 py-2 border-t ${bold ? 'border-slate-300 bg-slate-50 font-semibold' : 'border-slate-200 bg-white'}`}>
                               <span className={`flex items-center gap-1 ${bold ? 'text-slate-700' : 'text-slate-500'}`}>
                                 {label} {tip && <InfoTooltip text={tip} />}
                               </span>
@@ -1314,18 +1340,14 @@ export default function App() {
                         </div>
 
                         {/* Marginal Rate Chart */}
-                        <div className="mt-6">
+                        <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-3">
                           <div className="flex gap-2 items-center">
                             <div className="flex flex-col gap-2 shrink-0 w-32">
-                              <div className="flex-1 p-2.5 rounded-xl border-2 border-brand-600 flex flex-col items-center justify-center text-center gap-0.5">
+                              <div className="flex-1 p-2.5 rounded-xl bg-white border-2 border-brand-600 flex flex-col items-center justify-center text-center gap-0.5">
                                 <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">After Opt. <InfoTooltip text={TOOLTIPS.marginalAfter} /></p>
                                 <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateAfter)}</p>
                               </div>
-                              {/* <div className="flex-1 p-1 rounded-xl bg-brand-100/55 flex flex-col items-center justify-center text-center gap-0.5">
-                                <p className="text-xs text-brand-700 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Save in Tax <InfoTooltip text={TOOLTIPS.taxSaving} /></p>
-                                <p className="text-sm font-bold text-slate-900">${fmt(result.taxSaving)}</p>
-                              </div> */}
-                              <div className="flex-1 p-2.5 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center gap-0.5">
+                              <div className="flex-1 p-2.5 rounded-xl bg-white border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center gap-0.5">
                                 <p className="text-sm font-semibold text-slate-500 leading-tight flex items-center justify-center gap-0.5 flex-wrap">Before Opt.<InfoTooltip text={TOOLTIPS.marginalBefore} /></p>
                                 <p className="text-base font-bold text-slate-900">{fmtPct(result.marginalRateBefore)}</p>
                               </div>

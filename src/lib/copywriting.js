@@ -9,7 +9,6 @@ export const ALERTS = {
 
   fhsaRoomExceeded: `FHSA Participation Room can't exceed $16,000. Annual base limit is $8,000 and the maximum is $16,000 if you have carryforward room.`,
 
-  fhsaLifetimeExceeded: `Lifetime FHSA Contributions can't exceed the $40,000 lifetime limit. Re-enter the correct total from your records.`,
 };
 
 // ─── CLAWBACK ZONE ALERT (BC-specific) ───────────────────────────────────────
@@ -68,14 +67,11 @@ export function step1Note(totalLiabilities, availableCash, remainingMonths = 12,
   };
 }
 
-export function step2Note({ fhsaContrib, fhsaRoom, fhsaRoomForYear, fhsaLifetimeReached, availableCash }) {
+export function step2Note({ fhsaContrib, fhsaRoom, fhsaRoomForYear, availableCash }) {
   if (fhsaContrib <= 0) {
-    if (fhsaLifetimeReached) {
-      return { variant: 'info', text: `You've reached the $40,000 FHSA lifetime limit. This account is fully funded for good.` };
-    }
     if (fhsaRoom <= 0) {
       if (fhsaRoomForYear <= 0) {
-        return { variant: 'info', text: `Enter your FHSA Participation Room to include this account in tax optimization.` };
+        return { variant: 'info', text: `Enter your FHSA Participation Room to include this account in tax optimization. Annual limit is $8,000, up to $16,000 with carryforward. Lifetime cap is $40,000.` };
       }
       return { variant: 'info', text: `You've already contributed your full $${fmt(fhsaRoomForYear)} FHSA room for this year — no additional room available.` };
     }
@@ -87,10 +83,7 @@ export function step2Note({ fhsaContrib, fhsaRoom, fhsaRoomForYear, fhsaLifetime
   if (fhsaContrib < fhsaRoom) {
     return { variant: 'info', text: `$${fmt(fhsaRoom - fhsaContrib)} of your FHSA room is going unused this year due to limited available cash.` };
   }
-  if (fhsaLifetimeReached) {
-    return { variant: 'success', text: `This contribution uses your full $${fmt(fhsaContrib)} FHSA room and reaches your $40,000 lifetime limit — fully funded for good.` };
-  }
-  return { variant: 'success', text: `You've used your full $${fmt(fhsaContrib)} FHSA room for this year. The rest of your room carries forward to next year.` };
+  return { variant: 'success', text: `You've used your full $${fmt(fhsaContrib)} FHSA room for this year. Unused room carries forward and total lifetime contributions are capped at $40,000.` };
 }
 
 export function step3Note({ rrspContrib, rrspRoom, rrspRoomFromNoa, availableCash }) {
@@ -113,17 +106,25 @@ export function step3Note({ rrspContrib, rrspRoom, rrspRoomFromNoa, availableCas
   return { variant: 'success', text: `Your full RRSP room is used this year — no carryforward remaining.` };
 }
 
-export function tfsaNote(tfsaAmount, tfsaLimit) {
-  if (tfsaAmount <= 0) return null;
-  if (tfsaAmount > tfsaLimit) {
-    return {
-      variant: 'info',
-      text: `Max out your $${fmt(tfsaLimit)} TFSA room for tax-free growth. Put the remaining $${fmt(tfsaAmount - tfsaLimit)} in a non-registered investment account, or hold it for next year's TFSA room.`,
-    };
+export function tfsaNote(tfsaAmount, tfsaAvailableRoom, availableCash, tfsaRoomInput) {
+  if (tfsaAmount <= 0) {
+    if (!tfsaRoomInput) {
+      return { variant: 'info', text: `Enter your TFSA Available Room above to include this account in your plan.` };
+    }
+    if (tfsaAvailableRoom <= 0) {
+      return { variant: 'info', text: `You've already used your full TFSA room for this year — nothing more to add.` };
+    }
+    if (!availableCash) {
+      return { variant: 'info', text: `Enter your Available Cash above to begin contributing to your TFSA.` };
+    }
+    return { variant: 'info', text: `No TFSA contribution this year — no cash remains after FHSA and RRSP.` };
+  }
+  if (tfsaAmount >= tfsaAvailableRoom) {
+    return { variant: 'success', text: `Your full $${fmt(tfsaAvailableRoom)} TFSA room is used — every dollar grows tax-free.` };
   }
   return {
     variant: 'success',
-    text: `Save the remaining $${fmt(tfsaAmount)} in your TFSA for tax-free growth — fully within your $${fmt(tfsaLimit)} annual room.`,
+    text: `Save $${fmt(tfsaAmount)} in your TFSA for tax-free growth. $${fmt(tfsaAvailableRoom - tfsaAmount)} of room goes unused and carries forward to next year.`,
   };
 }
 
@@ -143,7 +144,8 @@ export const TOOLTIPS = {
   rrspAlreadyContrib:    'Money you have already deposited into your RRSP this calendar year or the first 60 days of the following year. DO NOT include employer-matched contributions.',
   fhsaAlreadyContrib:    'Amount already contributed to your FHSA this calendar year.\nAnnual base limit is $8,000 and the maximum is $16,000 if you have carryforward room.',
   fhsaRoomForYear:       'The amount shown as "Your FHSA participation room" on your CRA Notice of Assessment (NOA). If it\'s your first year with an FHSA, input $8,000.',
-  fhsaLifetimeUsed:      'Total amount deposited into your FHSA in all previous years combined — regardless of whether you claimed the deduction. You can defer the tax deduction to a future year, but deposits always count against your $40,000 lifetime limit the moment they are made.',
+  tfsaRoom:              'Your total available TFSA room as shown on CRA My Account. Includes the annual limit, carryforward from previous years, and re-contribution room from prior withdrawals.',
+  tfsaAlreadyContrib:    'Amount you have already deposited into your TFSA this calendar year. The engine deducts this from your available room before allocating any remaining cash.',
   availableCash:         'Total liquid savings you are willing to allocate toward taxes and registered investments this year.',
 
   // Results panel
@@ -188,15 +190,16 @@ export const ONBOARDING_MODAL = {
       description: 'Enter your T4 salary, self-employment revenue, and other income sources to establish your exact federal and provincial tax brackets.',
     },
     {
+      title: 'Enter Your Available Cash',
+      description: 'Enter the money you can set aside. The engine requires this to know exactly how much capital it can safely allocate.',
+    },
+    {
       title: 'Define CRA Limits',
-      description: 'Input your available RRSP and FHSA contribution room (found on your Notice of Assessment) to set the boundaries for the optimization engine.',
+      description: 'Input your available FHSA, RRSP, and TFSA contribution room (found on your Notice of Assessment) to set the boundaries for the optimization engine.',
     },
+    
     {
-      title: 'Allocate Liquid Savings',
-      description: 'Enter your total available cash pool. The engine requires this to know exactly how much capital it can safely allocate.',
-    },
-    {
-      title: 'Get Optimized',
+      title: 'Get Your Optimized Action Plan',
       description: 'The engine secures your mandatory Tax and CPP liabilities first, then automatically cascades the remaining cash into your registered accounts for maximum tax efficiency.',
     },
   ],

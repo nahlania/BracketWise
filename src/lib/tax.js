@@ -194,11 +194,8 @@ function calcRrspRoom(rrspRoomFromNoa, alreadyContributed, t4Income, matchPct) {
 
 // ─── FHSA AVAILABLE ROOM ─────────────────────────────────────────────────────
 
-function calcFhsaRoom(alreadyThisYear, lifetimeUsed, roomForYear, year) {
-  const lifetime = LIMITS[year].fhsaLifetime;
-  const annualRoom   = Math.max(0, roomForYear - alreadyThisYear);
-  const lifetimeRoom = Math.max(0, lifetime - lifetimeUsed);
-  return Math.min(annualRoom, lifetimeRoom);
+function calcFhsaRoom(alreadyThisYear, roomForYear) {
+  return Math.max(0, roomForYear - alreadyThisYear);
 }
 
 // ─── OPTIMIZATION FLOOR ──────────────────────────────────────────────────────
@@ -223,7 +220,7 @@ function buildBracketsPlotData(province, year) {
     seNetIncome: 0, otherTaxableIncome: 0, capitalGains: 0,
     childcare: 0, medicalExpenses: 0,
     rrspRoomFromNoa: 0, rrspAlreadyContributed: 0, rrspMatchPct: 0,
-    fhsaAlreadyThisYear: 0, fhsaLifetimeUsed: 0,
+    fhsaAlreadyThisYear: 0,
   };
 
   const result = [];
@@ -253,7 +250,7 @@ function singlePass(inputs, rrspContrib, fhsaContrib) {
     t4Income, seNetIncome, otherTaxableIncome, capitalGains,
     childcare, medicalExpenses,
     rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchPct,
-    fhsaAlreadyThisYear, fhsaLifetimeUsed,
+    fhsaAlreadyThisYear,
   } = inputs;
 
   const cpp = calcCpp(t4Income, seNetIncome, year);
@@ -329,7 +326,7 @@ function estimateT4Withholding(t4Income, year, province) {
     seNetIncome: 0, otherTaxableIncome: 0, capitalGains: 0,
     childcare: 0, medicalExpenses: 0,
     rrspRoomFromNoa: 0, rrspAlreadyContributed: 0, rrspMatchPct: 0,
-    fhsaAlreadyThisYear: 0, fhsaLifetimeUsed: 0,
+    fhsaAlreadyThisYear: 0,
   }, 0, 0);
   return t4TotalTax;
 }
@@ -353,12 +350,13 @@ export function calculateTax(inputs) {
     t4Income, rrspMatchIncome, seNetIncome, capitalGains,
     availableCash,
     rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchPct,
-    fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaRoomForYear,
+    fhsaAlreadyThisYear, fhsaRoomForYear,
+    tfsaRoom, tfsaAlreadyThisYear,
   } = inputs;
 
   const floor       = getFloor(province, year);
   const rrspRoom    = calcRrspRoom(rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchIncome ?? t4Income, rrspMatchPct);
-  const fhsaRoom    = calcFhsaRoom(fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaRoomForYear, year);
+  const fhsaRoom    = calcFhsaRoom(fhsaAlreadyThisYear, fhsaRoomForYear);
   const t4TotalTax  = estimateT4Withholding(t4Income, year, province);
 
   // ── Pre-optimization pass (zero contributions) — for before/after comparison
@@ -400,11 +398,14 @@ export function calculateTax(inputs) {
   const { ei }          = result;
   const t4Cpp           = result.cpp.t4Cpp1 + result.cpp.t4Cpp2;
   const seCpp           = result.cpp.seCpp1 + result.cpp.seCpp2;
-  const taxOwing        = Math.max(0, result.totalTax - t4TotalTax);
+  const taxOwing         = Math.max(0, result.totalTax - t4TotalTax);
   const totalLiabilities = taxOwing + seCpp;
-  const investablePool  = Math.max(0, availableCash - totalLiabilities);
-  const tfsaAnnualLimit = LIMITS[year].tfsaAnnual;
-  const tfsa            = Math.min(Math.max(0, investablePool - fhsaContrib - rrspContrib), tfsaAnnualLimit);
+  const finalCashNeeded  = Math.max(0, result.totalTax - t4TotalTax + seCpp);
+  const investablePool   = Math.max(0, availableCash - finalCashNeeded);
+  const tfsaAvailableRoom = tfsaRoom > 0
+    ? Math.max(0, tfsaRoom - (tfsaAlreadyThisYear || 0))
+    : Math.max(0, LIMITS[year].tfsaAnnual - (tfsaAlreadyThisYear || 0));
+  const tfsa             = Math.min(Math.max(0, investablePool - fhsaContrib - rrspContrib), tfsaAvailableRoom);
 
   // ── Derived metrics ───────────────────────────────────────────────────────
   const afterTaxIncome = result.grossIncome - result.totalTax - result.totalCpp - ei;
@@ -464,7 +465,7 @@ export function calculateTax(inputs) {
     fhsaContrib,
     rrspContrib,
     tfsa,
-    tfsaAnnualLimit,
+    tfsaAvailableRoom,
     fhsaRoom,
     rrspRoom,
 

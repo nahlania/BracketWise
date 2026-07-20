@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { HelpCircle, ChevronDown } from 'lucide-react';
+import { HelpCircle, ChevronDown, X } from 'lucide-react';
 import { calculateTax } from './lib/tax.js';
 import { PROVINCE_NAMES, LIMITS } from './lib/brackets.js';
 import {
@@ -67,7 +67,7 @@ function InfoTooltip({ text }) {
 
 // ─── STEPPER INPUT ────────────────────────────────────────────────────────────
 
-function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlineSuffix = '', tooltip, children, className = '', inputRef, step = 1000, min, max }) {
+function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlineSuffix = '', tooltip, children, className = '', inputRef, step = 1000, min, max, disabled = false }) {
   const [trailingDot, setTrailingDot] = useState(false);
 
   const handleChange = (e) => {
@@ -101,7 +101,7 @@ function StepperInput({ label, value, onChange, prefix = '$', suffix = '', inlin
     : (value === 0 ? '' : value.toLocaleString('en-CA')) + (trailingDot ? '.' : '');
 
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-1.5 ${className}${disabled ? ' opacity-40 pointer-events-none select-none' : ''}`}>
       <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 leading-tight">
         {label}
         {tooltip && <InfoTooltip text={tooltip} />}
@@ -142,9 +142,9 @@ function Chip({ label, active, onClick, radio = false, contract = false }) {
         onClick={onClick}
         aria-label={label}
         title={label}
-        className="flex items-center justify-center w-10 h-10 shrink-0 rounded-full text-sm font-bold border transition-all duration-200 bg-white text-slate-500 border-slate-200 hover:border-brand-300 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1"
+        className="flex items-center justify-center w-10 h-10 shrink-0 rounded-full border transition-all duration-200 bg-white text-slate-500 border-slate-200 hover:border-brand-300 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-1"
       >
-        ✓
+        <X size={16} />
       </button>
     );
   }
@@ -181,18 +181,20 @@ function SectionCard({ title, children, className = '', dark = false }) {
 function Toast({ message, pos, onClose }) {
   return createPortal(
     <div
-      className="fixed z-50 flex items-start gap-2 px-4 py-3 rounded-xl bg-warning-50 border border-warning-200 text-warning-800 text-sm leading-relaxed shadow-lg"
+      className="fixed z-50 flex flex-col px-4 py-3 rounded-xl bg-warning-50 border border-warning-200 text-warning-800 shadow-lg"
       style={{ top: pos.top, left: pos.left, width: pos.width }}
     >
-      <span className="flex-1">{message}</span>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Dismiss"
-        className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-warning-700 hover:bg-warning-200/60 transition-colors leading-none"
-      >
-        ✕
-      </button>
+      <div className="flex justify-end mb-1.5">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="w-5 h-5 rounded-full flex items-center justify-center text-warning-700 hover:bg-warning-200/60 transition-colors leading-none"
+        >
+          ✕
+        </button>
+      </div>
+      <span className="text-sm leading-relaxed">{message}</span>
     </div>,
     document.body,
   );
@@ -380,10 +382,10 @@ function EmptyState() {
   return (
     <div className="flex flex-col gap-1.5 h-full">
 
-      {/* Skeleton: Save & Optimize — DARK (swap 'dark' prop to revert) */}
+      {/* Skeleton: Save & Optimize */}
       <SectionCard title="Your Tax Savings Action Plan" className="flex-1 flex flex-col bg-gradient-to-b from-brand-50 to-brand-100 !border-brand-200" dark>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
-          {[0, 1, 2].map(i => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+          {[0, 1, 2, 3].map(i => (
             <div key={i} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-brand-100 border border-brand-200 shrink-0 animate-pulse" />
@@ -400,22 +402,10 @@ function EmptyState() {
                   <div className={`${skRow} w-12`} />
                 </div>
                 <div className={`${skRow} w-full`} />
-                <div className={`${skRow} w-full`} />
-                <div className={`${skRow} w-full`} />
-              </div>
-            </div>
-          ))}
-
-          {/* Step 4 — TFSA (full-width row) */}
-          <div className="sm:col-span-3">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-6">
-              <div className={`${skBlock} w-16 shrink-0`} />
-              <div className="flex-1 flex flex-col gap-1.5">
-                <div className={`${skRow} w-full`} />
                 <div className={`${skRow} w-3/4`} />
               </div>
             </div>
-          </div>
+          ))}
         </div>
       </SectionCard>
 
@@ -454,18 +444,58 @@ function EmptyState() {
 // ─── CUSTOM DROPDOWN ──────────────────────────────────────────────────────────
 
 function Dropdown({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleKey = (e) => {
+    if (e.key === 'Escape') setOpen(false);
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(v => !v); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); const i = options.findIndex(o => o.value === value); onChange(options[Math.min(i + 1, options.length - 1)].value); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); const i = options.findIndex(o => o.value === value); onChange(options[Math.max(i - 1, 0)].value); }
+  };
+
   return (
-    <div className="relative w-full">
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="h-10 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-full pl-3 pr-8 cursor-pointer outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 w-full appearance-none"
+    <div className="relative w-full" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        onKeyDown={handleKey}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="h-10 w-full text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-full pl-3 pr-8 cursor-pointer outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 text-left transition-colors hover:border-brand-400"
       >
-        {options.map(o => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        {selected?.label}
+      </button>
+      <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto max-h-60 py-1"
+        >
+          {options.map(o => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`px-3 py-2 text-sm font-semibold cursor-pointer transition-colors ${
+                o.value === value
+                  ? 'bg-brand-50 text-brand-700'
+                  : 'text-slate-700 hover:bg-brand-50 hover:text-brand-700'
+              }`}
+            >
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -689,14 +719,14 @@ export default function App() {
   const [rrspRoomFromNoa,        setRrspRoomFromNoa]      = useState(0);
   const [rrspAlreadyContributed, setRrspAlreadyContrib]   = useState(0);
   const [fhsaAlreadyThisYear,    setFhsaAlreadyThisYear]  = useState(0);
-  const [fhsaLifetimeUsed,       setFhsaLifetimeUsed]     = useState(0);
   const [fhsaRoomForYear,        setFhsaRoomForYear]      = useState(0);
+  const [tfsaRoom,               setTfsaRoom]             = useState(0);
+  const [tfsaAlreadyThisYear,    setTfsaAlreadyThisYear]  = useState(0);
 
   // Toast notification (e.g., for input validation messages)
   const [toast, setToast]               = useState(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const fhsaRoomInputRef = useRef(null);
-  const fhsaLifetimeInputRef = useRef(null);
   const rrspRoomInputRef = useRef(null);
   const t4IncomeInputRef = useRef(null);
   const lastFocusedInputRef = useRef(null);
@@ -716,22 +746,12 @@ export default function App() {
     }
   };
 
-  const handleFhsaLifetimeChange = (val) => {
-    if (val > 40000) {
-      setFhsaLifetimeUsed(0);
-      setCommittedInputs(prev => ({ ...prev, fhsaLifetimeUsed: 0 }));
-      showLimitToast(fhsaLifetimeInputRef, ALERTS.fhsaLifetimeExceeded);
-    } else {
-      setFhsaLifetimeUsed(val);
-    }
-  };
-
   const handleRrspRoomChange = (val) => {
     const max = LIMITS[Number(year)].rrspMax;
     if (val > max) {
       setRrspRoomFromNoa(0);
       setCommittedInputs(prev => ({ ...prev, rrspRoomFromNoa: 0 }));
-      showLimitToast(rrspRoomInputRef, `RRSP Contribution Room can't exceed $${max.toLocaleString('en-CA')} for ${year} — that's the CRA annual deduction limit. Enter the exact amount from your Notice of Assessment (NOA).`);
+      showLimitToast(rrspRoomInputRef, `RRSP Contribution Room can't exceed $${max.toLocaleString('en-CA')} for ${year}. Enter the exact amount from your Notice of Assessment (NOA).`);
     } else {
       setRrspRoomFromNoa(val);
     }
@@ -765,15 +785,16 @@ export default function App() {
     rrspAlreadyContributed,
     rrspMatchPct,
     fhsaAlreadyThisYear,
-    fhsaLifetimeUsed,
     fhsaRoomForYear,
+    tfsaRoom,
+    tfsaAlreadyThisYear,
     availableCash,
   }), [
     year, province, t4Income, bonusIncome, seNetIncome,
     capGainsActive, capitalGains, otherTaxableActive, otherTaxableIncome,
     childcareActive, childcare, medicalActive, medicalExpenses,
     rrspRoomFromNoa, rrspAlreadyContributed, rrspMatchPct,
-    fhsaAlreadyThisYear, fhsaLifetimeUsed, fhsaRoomForYear, availableCash,
+    fhsaAlreadyThisYear, fhsaRoomForYear, tfsaRoom, tfsaAlreadyThisYear, availableCash,
   ]);
 
   // Commit calcInputs to the results panel on blur (rather than on a timer),
@@ -833,9 +854,6 @@ export default function App() {
   const monthlyRrsp        = result ? result.rrspContrib / remainingMonths : 0;
   const monthlyTfsa        = result ? result.tfsa / remainingMonths : 0;
 
-  const fhsaLifetimeReached = result
-    ? (LIMITS[committedInputs.year].fhsaLifetime - committedInputs.fhsaLifetimeUsed - result.fhsaContrib) <= 0
-    : false;
 
   const focusInput = (ref) => setTimeout(() => ref.current?.querySelector('input')?.focus(), 0);
   const handleCloseModal = () => {
@@ -937,7 +955,7 @@ export default function App() {
         </SectionCard>
 
         {/* § T4 Employment */}
-        <SectionCard title="Employment Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
+        <SectionCard title="YOur Employment Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <StepperInput
               label="T4 Employment Income"
@@ -956,7 +974,7 @@ export default function App() {
         </SectionCard>
 
         {/* § Self-Employment + Other Income */}
-        <SectionCard title="Self-Employment & Other Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
+        <SectionCard title="Your Self-Employment & Other Income" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <StepperInput
               label="SE Gross Revenue"
@@ -1048,63 +1066,86 @@ export default function App() {
         </SectionCard>
 
         {/* § Registered Accounts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          <SectionCard title="First Home Savings Account" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
-            <div className="flex flex-col gap-5">
-              <StepperInput
-                label="FHSA Participation Room"
-                value={fhsaRoomForYear}
-                onChange={handleFhsaRoomChange}
-                max={16000}
-                tooltip={TOOLTIPS.fhsaRoomForYear}
-                inputRef={fhsaRoomInputRef}
-              />
-              <StepperInput
-                label="FHSA Contributed This Year"
-                value={fhsaAlreadyThisYear}
-                onChange={setFhsaAlreadyThisYear}
-                max={16000}
-                tooltip={TOOLTIPS.fhsaAlreadyContrib}
-              />             
-              <StepperInput
-                label="Lifetime FHSA Contributions"
-                value={fhsaLifetimeUsed}
-                onChange={handleFhsaLifetimeChange}
-                max={40000}
-                tooltip={TOOLTIPS.fhsaLifetimeUsed}
-                inputRef={fhsaLifetimeInputRef}
-              />
-            </div>
-          </SectionCard>
+        <SectionCard title="Your Registered Saving Accounts" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
+          <div className="flex flex-col gap-3">
 
-          <SectionCard title="Retirement Savings Plan" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
-            <div className="flex flex-col gap-5">
-              <StepperInput
-                label="RRSP Contribution Room"
-                value={rrspRoomFromNoa}
-                onChange={handleRrspRoomChange}
-                inputRef={rrspRoomInputRef}
-                tooltip={TOOLTIPS.rrspRoom}
-              />
-              <StepperInput
-                label="RRSP Contributed This Year"
-                value={rrspAlreadyContributed}
-                onChange={setRrspAlreadyContrib}
-                tooltip={TOOLTIPS.rrspAlreadyContrib}
-              />              
-              <StepperInput
-                label="Employer RRSP Match"
-                value={rrspMatchPct}
-                onChange={setRrspMatchPct}
-                step={0.5}
-                min={0}
-                max={100}
-                prefix="%"
-                tooltip={TOOLTIPS.rrspMatchPct}
-              />
+            {/* FHSA */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-col gap-3">
+              <p className="text-xs font-bold text-slate-700">FHSA <span className="font-normal text-slate-400">· First Home Savings</span></p>
+              <div className="grid grid-cols-2 gap-4">
+                <StepperInput
+                  label="Participation Room"
+                  value={fhsaRoomForYear}
+                  onChange={handleFhsaRoomChange}
+                  max={16000}
+                  tooltip={TOOLTIPS.fhsaRoomForYear}
+                  inputRef={fhsaRoomInputRef}
+                />
+                <StepperInput
+                  label="Contributed This Year"
+                  value={fhsaAlreadyThisYear}
+                  onChange={setFhsaAlreadyThisYear}
+                  max={16000}
+                  tooltip={TOOLTIPS.fhsaAlreadyContrib}
+                  disabled={fhsaRoomForYear === 0}
+                />
+              </div>
             </div>
-          </SectionCard>
-        </div>
+
+            {/* RRSP */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-col gap-3">
+              <p className="text-xs font-bold text-slate-700">RRSP <span className="font-normal text-slate-400">· Retirement Savings</span></p>
+              <div className="grid grid-cols-3 gap-4">
+                <StepperInput
+                  label="Contribution Room"
+                  value={rrspRoomFromNoa}
+                  onChange={handleRrspRoomChange}
+                  inputRef={rrspRoomInputRef}
+                  tooltip={TOOLTIPS.rrspRoom}
+                />
+                <StepperInput
+                  label="Contributed This Year"
+                  value={rrspAlreadyContributed}
+                  onChange={setRrspAlreadyContrib}
+                  tooltip={TOOLTIPS.rrspAlreadyContrib}
+                  disabled={rrspRoomFromNoa === 0}
+                />
+                <StepperInput
+                  label="Employer Match"
+                  value={rrspMatchPct}
+                  onChange={setRrspMatchPct}
+                  step={0.5}
+                  min={0}
+                  max={100}
+                  prefix="%"
+                  tooltip={TOOLTIPS.rrspMatchPct}
+                  disabled={t4Income === 0}
+                />
+              </div>
+            </div>
+
+            {/* TFSA */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-col gap-3">
+              <p className="text-xs font-bold text-slate-700">TFSA <span className="font-normal text-slate-400">· Tax-Free Savings</span></p>
+              <div className="grid grid-cols-2 gap-4">
+                <StepperInput
+                  label="Available Room"
+                  value={tfsaRoom}
+                  onChange={setTfsaRoom}
+                  tooltip={TOOLTIPS.tfsaRoom}
+                />
+                <StepperInput
+                  label="Contributed This Year"
+                  value={tfsaAlreadyThisYear}
+                  onChange={setTfsaAlreadyThisYear}
+                  tooltip={TOOLTIPS.tfsaAlreadyContrib}
+                  disabled={tfsaRoom === 0}
+                />
+              </div>
+            </div>
+
+          </div>
+        </SectionCard>
 
         {/* § Deductions & Credits — chips */}
         <SectionCard title="Household Deductions &amp; Credits" className="bg-gradient-to-b from-slate-50 to-slate-100 pb-5">
@@ -1170,20 +1211,24 @@ export default function App() {
             {/* Your Tax Savings Action Plan */}
             <SectionCard title="Your Tax Savings Action Plan" className="flex-1 flex flex-col bg-gradient-to-b from-brand-50 to-brand-100 !border-brand-200" dark>
               <p className="text-xs text-slate-400 -mt-2 mb-3">Based on {remainingMonths} month{remainingMonths !== 1 ? 's' : ''} remaining in {year}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
+
+                {/* Step 1 — Save for Owing */}
                 {(() => {
                   const s1 = step1Note(result.totalLiabilities, availableCash, remainingMonths, estimatedRefund);
+                  const owingLabel = estimatedRefund > 0 ? 'Refund Expected' : 'Total Year-End Owing';
+                  const owingValue = estimatedRefund > 0 ? `+$${fmt(estimatedRefund)}` : `$${fmt(result.totalLiabilities)}`;
                   return (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <StepBadge n={1} />
-                        <p className="text-sm font-semibold text-slate-800">Save for Owings</p>
+                        <p className="text-sm font-semibold text-slate-800">Save for Owing</p>
                       </div>
                       <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1.5">
                         <p className="text-base font-bold text-slate-900">${fmt(monthlyLiabilities)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
                         <div className="flex justify-between text-xs border-t border-slate-200 pt-1.5 font-bold text-brand-900">
-                          <span>Total Year-End Owing</span>
-                          <span>${fmt(result.totalLiabilities)}</span>
+                          <span>{owingLabel}</span>
+                          <span>{owingValue}</span>
                         </div>
                         <StepNote variant={s1.variant} inline>{s1.text}</StepNote>
                       </div>
@@ -1191,8 +1236,9 @@ export default function App() {
                   );
                 })()}
 
+                {/* Step 2 — FHSA */}
                 {(() => {
-                  const s2 = step2Note({ fhsaContrib: result.fhsaContrib, fhsaRoom: result.fhsaRoom, fhsaRoomForYear: committedInputs.fhsaRoomForYear, fhsaLifetimeReached, availableCash });
+                  const s2 = step2Note({ fhsaContrib: result.fhsaContrib, fhsaRoom: result.fhsaRoom, fhsaRoomForYear: committedInputs.fhsaRoomForYear, availableCash });
                   const yearEndTotal = fhsaAlreadyThisYear + result.fhsaContrib;
                   return (
                     <div className="flex flex-col gap-2">
@@ -1216,6 +1262,7 @@ export default function App() {
                   );
                 })()}
 
+                {/* Step 3 — RRSP */}
                 {(() => {
                   const s3 = step3Note({ rrspContrib: result.rrspContrib, rrspRoom: result.rrspRoom, rrspRoomFromNoa: committedInputs.rrspRoomFromNoa, availableCash });
                   const employerMatch = t4Income * (rrspMatchPct / 100) * 2;
@@ -1242,18 +1289,33 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {/* Step 4 — TFSA */}
                 {(() => {
-                  const tfsa = tfsaNote(result.tfsa, result.tfsaAnnualLimit);
-                  if (!tfsa) return null;
+                  const s4 = tfsaNote(result.tfsa, result.tfsaAvailableRoom, availableCash, committedInputs.tfsaRoom);
+                  const yearEndTotal = tfsaAlreadyThisYear + result.tfsa;
                   return (
-                    <div className="sm:col-span-3">
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-6">
-                        <p className="text-base font-bold text-slate-900 shrink-0">${fmt(monthlyTfsa)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
-                        <StepNote variant={tfsa.variant} inline>{tfsa.text}</StepNote>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <StepBadge n={4} />
+                        <p className="text-sm font-semibold text-slate-800">Contribute to TFSA</p>
+                      </div>
+                      <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1.5">
+                        <p className="text-base font-bold text-slate-900">${fmt(monthlyTfsa)}<span className="text-xs font-normal text-slate-500 ml-1">/ month</span></p>
+                        <div className="flex justify-between text-xs text-slate-500 border-t border-slate-200 pt-1.5">
+                          <span>Already Contributed</span>
+                          <span className="font-semibold text-slate-700">${fmt(tfsaAlreadyThisYear)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t border-slate-200 pt-1.5 font-bold text-brand-900">
+                          <span>Total Year-End Contribution</span>
+                          <span>${fmt(yearEndTotal)}</span>
+                        </div>
+                        <StepNote variant={s4.variant} inline>{s4.text}</StepNote>
                       </div>
                     </div>
                   );
                 })()}
+
               </div>
             </SectionCard>
 

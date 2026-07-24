@@ -1321,30 +1321,57 @@ export default function App() {
 
             {/* Income & Liabilities After Optimization */}
             <SectionCard title="Income & Liabilities After Optimization" className="bg-gradient-to-b from-slate-200 to-slate-300" dark>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <StatPill label="Gross Income"     value={`$${fmt(result.grossIncome)}`}    tooltip={TOOLTIPS.grossIncome} />
-                <StatPill label="After-Tax Income" value={`$${fmt(result.afterTaxIncome)}`} tooltip={TOOLTIPS.afterTaxIncome} />
-                <StatPill label="Average Rate"     value={fmtPct(result.avgTaxRate)}        tooltip={TOOLTIPS.avgTaxRate} />
-              </div>
+              {(() => {
+                // Gross income is unaffected by RRSP/FHSA contributions, so it has
+                // no before/after delta — only after-tax income and average rate move.
+                const beforeAvgTaxRate = result.grossIncome > 0
+                  ? ((result.beforeFedTax + result.beforeProvTax + result.totalCpp + result.ei) / result.grossIncome) * 100
+                  : 0;
+                const avgRateDelta = beforeAvgTaxRate - result.avgTaxRate;
+
+                return (
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <StatPill label="Gross Income"     value={`$${fmt(result.grossIncome)}`}    tooltip={TOOLTIPS.grossIncome} />
+                    <StatPill
+                      label="After-Tax Income"
+                      value={`$${fmt(result.afterTaxIncome)}`}
+                      tooltip={TOOLTIPS.afterTaxIncome}
+                      note={result.taxSaving > 0 ? `+$${fmt(result.taxSaving)}` : undefined}
+                      noteAccent
+                    />
+                    <StatPill
+                      label="Average Rate"
+                      value={fmtPct(result.avgTaxRate)}
+                      tooltip={TOOLTIPS.avgTaxRate}
+                      note={avgRateDelta > 0.05 ? `−${avgRateDelta.toFixed(1)}%` : undefined}
+                      noteAccent
+                    />
+                  </div>
+                );
+              })()}
               {(() => {
                 const grossLiabilities = result.totalTax + result.totalCpp + result.ei;
                 const totalWithheld    = result.t4TotalTax + result.t4Cpp + result.ei;
                 const cppAndEi         = result.totalCpp + result.ei;
                 const beforeGrossLiab  = result.beforeFedTax + result.beforeProvTax + cppAndEi;
 
+                // Withholding only offsets income tax owing, never SE CPP (remitted
+                // separately) — mirrors the taxOwing/totalLiabilities split in tax.js.
+                const beforeTaxOwing = Math.max(0, (result.beforeFedTax + result.beforeProvTax) - result.t4TotalTax);
+                const beforeOwing    = beforeTaxOwing + result.seCpp;
+
                 const tableRows = [
                   { label: 'Federal Tax',                  tip: TOOLTIPS.fedTax,           after: result.fedTax,    before: result.beforeFedTax,  prefix: ''  },
                   { label: `Provincial Tax (${province})`, tip: TOOLTIPS.provTax,          after: result.provTax,   before: result.beforeProvTax, prefix: ''  },
                   ...((result.t4Cpp + result.ei) > 0 ? [
-                    { label: 'Employment CPP & EI',        tip: TOOLTIPS.seCpp,            after: result.t4Cpp + result.ei, before: null,           prefix: ''  },
+                    { label: 'Employment CPP & EI',        tip: TOOLTIPS.employmentCppEi,  after: result.t4Cpp + result.ei, before: null,           prefix: ''  },
                   ] : []),
-                  ...(result.seCpp > 0 ? [
-                    { label: 'SE CPP',                     tip: TOOLTIPS.seCpp,            after: result.seCpp,     before: null,                 prefix: ''  },
-                  ] : []),
-                  { label: 'Total Liabilities',            tip: TOOLTIPS.totalLiabilities, after: grossLiabilities, before: beforeGrossLiab,      prefix: '', bold: true },
+                  { label: 'Self Employment CPP',                       tip: TOOLTIPS.seCpp,            after: result.seCpp,     before: null,                 prefix: ''  },
+                  { label: 'Total Liabilities',            tip: TOOLTIPS.totalLiabilities, after: grossLiabilities, before: beforeGrossLiab,      prefix: '' },
                   ...(totalWithheld > 0 ? [
                     { label: 'Est. Withheld at Source',    tip: TOOLTIPS.withheldAtSource, after: totalWithheld,    before: null,                 prefix: '−' },
                   ] : []),
+                  { label: 'Amount Owing',                 tip: TOOLTIPS.yearEndOwing,     after: result.totalLiabilities, before: beforeOwing,    prefix: '' },
                 ];
 
                 return (

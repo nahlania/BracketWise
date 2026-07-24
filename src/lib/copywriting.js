@@ -154,6 +154,7 @@ export const TOOLTIPS = {
   avgTaxRate:         'Total tax as a percentage of gross income. Unlike the marginal rate, this reflects what you actually pay across all your income combined — not just the rate on your last dollar.',
   fedTax:             'Federal income tax on your taxable income, calculated using the CRA federal brackets for the selected tax year.',
   provTax:            'Provincial income tax based on your province of residence and its tax schedule.',
+  employmentCppEi:    'CPP and EI premiums deducted from your T4 employment income at source.',
   seCpp:              'CPP contributions on self-employment net income. Self-employed individuals pay both the employee and employer portions — roughly double the rate of a salaried worker.',
   totalLiabilities:   'Total of all taxes and CPP owing before any employer withholding is credited.',
   withheldAtSource:   'Tax your employer has already deducted from your T4 pay and remitted to the CRA on your behalf (Box 22 of your T4 slip).',
